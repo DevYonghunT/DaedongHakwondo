@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgis/postgis:15-3.4
     container_name: hakwonnono-db
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: hakwonnono
       POSTGRES_PASSWORD: hakwonnono
