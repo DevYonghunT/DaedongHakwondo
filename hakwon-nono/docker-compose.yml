@@ -7,8 +7,9 @@ services:
       - "5433:5432"
     environment:
       POSTGRES_USER: hakwonnono
-      POSTGRES_PASSWORD: hakwonnono
-      POSTGRES_DB: hakwonnono
+      POSTGRES_PASS: hakwonnono
+      POSTGRES_DBNAME: hakwonnono
+      ALLOW_IP_RANGE: "0.0.0.0/0"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
