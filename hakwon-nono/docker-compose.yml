@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgis/postgis:15-3.4
+    platform: linux/arm64
     container_name: hakwonnono-db
     restart: unless-stopped
     ports:
