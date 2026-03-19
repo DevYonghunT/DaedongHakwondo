@@ -1,0 +1,88 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [postgis]
+}
+
+// 학원 정보
+model Academy {
+  id                String    @id @default(uuid())
+  atptOfcdcScCode   String    @map("atpt_ofcdc_sc_code") // 시도교육청코드
+  atptOfcdcScNm     String    @map("atpt_ofcdc_sc_nm") // 시도교육청명
+  acaAsnum          String    @map("aca_asnum") // 학원지정번호
+  academyNm         String    @map("academy_nm") // 학원명
+  academyType       String?   @map("academy_type") // 학원/교습소/개인과외
+  realmScNm         String?   @map("realm_sc_nm") // 분야명
+  leOrdNm           String?   @map("le_ord_nm") // 교습계열명
+  leCrseNm          String?   @map("le_crse_nm") // 교습과정명
+  leSubjectNm       String?   @map("le_subject_nm") // 교습과목명
+  capacity          Int?      // 정원
+  tuitionFee        Int?      @map("tuition_fee") // 수강료
+  address           String?   // 주소
+  latitude          Float?    // 위도
+  longitude         Float?    // 경도
+  regStatus         String?   @map("reg_status") // 등록상태
+  establishedDate   String?   @map("established_date") // 설립일
+  closedDate        String?   @map("closed_date") // 휴원일
+  rawData           Json?     @map("raw_data") // 원본 API 응답
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([acaAsnum, atptOfcdcScCode])
+  @@index([latitude, longitude])
+  @@index([realmScNm])
+  @@index([atptOfcdcScCode])
+  @@map("academies")
+}
+
+// 학교 기본정보
+model School {
+  id                String    @id @default(uuid())
+  atptOfcdcScCode   String    @map("atpt_ofcdc_sc_code") // 시도교육청코드
+  sdSchulCode       String    @map("sd_schul_code") // 표준학교코드
+  schoolNm          String    @map("school_nm") // 학교명
+  schoolKind        String?   @map("school_kind") // 초/중/고
+  address           String?   // 주소
+  latitude          Float?    // 위도
+  longitude         Float?    // 경도
+  coeduScNm         String?   @map("coedu_sc_nm") // 남녀공학구분
+  fondScNm          String?   @map("fond_sc_nm") // 설립구분
+  hsScNm            String?   @map("hs_sc_nm") // 고등학교 구분
+
+  @@unique([sdSchulCode, atptOfcdcScCode])
+  @@index([latitude, longitude])
+  @@map("schools")
+}
+
+// 행정구역별 집계
+model DistrictStats {
+  id                String    @id @default(uuid())
+  sido              String    // 시도
+  sigungu           String    // 시군구
+  dong              String?   // 읍면동
+  realm             String?   // 분야
+  academyCount      Int       @default(0) @map("academy_count")
+  avgTuition        Int?      @map("avg_tuition")
+  totalCapacity     Int?      @map("total_capacity")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([sido, sigungu, dong, realm])
+  @@index([sido, sigungu, dong])
+  @@map("district_stats")
+}
+
+// AI 분석 리포트 캐시
+model AiReport {
+  id                String    @id @default(uuid())
+  regionKey         String    @unique @map("region_key") // 지역 식별자
+  reportContent     String    @map("report_content") // 리포트 내용 (JSON)
+  dataSnapshot      Json?     @map("data_snapshot") // 분석에 사용된 데이터
+  createdAt         DateTime  @default(now()) @map("created_at")
+  expiresAt         DateTime  @map("expires_at")
+
+  @@map("ai_reports")
+}
