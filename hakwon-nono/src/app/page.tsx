@@ -141,7 +141,7 @@ export default function Home() {
               </svg>
             </div>
             <span className="text-lg font-bold text-gray-900 hidden sm:inline">
-              학원노노
+              대동학원도
             </span>
           </Link>
 

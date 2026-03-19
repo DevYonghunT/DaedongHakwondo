@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '학원노노 - 우리 동네 학원을 한눈에',
+  title: '대동학원도 - 우리 동네 학원을 한눈에',
   description:
     '교육 공공데이터를 활용한 지역별 학원 분포 시각화 서비스. 나이스 학원교습소 데이터로 우리 동네 사교육 현황을 지도 위에서 한눈에 확인하세요.',
   keywords: [
@@ -12,10 +12,10 @@ export const metadata: Metadata = {
     '학원검색',
     '학원지도',
     '교육공공데이터',
-    '학원노노',
+    '대동학원도',
   ],
   openGraph: {
-    title: '학원노노 - 우리 동네 학원을 한눈에',
+    title: '대동학원도 - 우리 동네 학원을 한눈에',
     description:
       '교육 공공데이터를 활용한 지역별 학원 분포 시각화 서비스',
     type: 'website',
