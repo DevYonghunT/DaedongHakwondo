@@ -2,13 +2,14 @@
 """
 대동학원도 - 학교 데이터 수집 및 지오코딩 스크립트
 NEIS Open API에서 전국 17개 교육청의 학교 기본 정보를 수집하고,
-Kakao Local API를 사용하여 좌표를 추가합니다.
+Naver Cloud Platform Geocoding API를 사용하여 좌표를 추가합니다.
 """
 
 import json
 import os
 import sys
 import time
+from typing import Optional
 import requests
 from pathlib import Path
 from dotenv import load_dotenv
@@ -19,10 +20,11 @@ load_dotenv(PROJECT_ROOT / ".env.local")
 
 # API 설정
 NEIS_API_KEY = os.getenv("NEIS_API_KEY")
-KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY")
+NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
+NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
 
 NEIS_API_ENDPOINT = "https://open.neis.go.kr/hub/schoolInfo"
-KAKAO_GEOCODE_URL = "https://dapi.kakao.com/v2/local/search/address.json"
+NAVER_GEOCODE_URL = "https://maps.apigw.ntruss.com/map-geocode/v2/geocode"
 
 # 데이터 경로
 DATA_DIR = PROJECT_ROOT / "data"
@@ -170,31 +172,32 @@ def collect_office_schools(office_code: str, office_name: str, output_file) -> i
     return total_count
 
 
-def geocode_address(address: str) -> dict | None:
-    """Kakao Local API를 사용하여 주소를 지오코딩합니다."""
+def geocode_address(address: str) -> Optional[dict]:
+    """Naver Cloud Platform Geocoding API를 사용하여 주소를 지오코딩합니다."""
     if not address or not address.strip():
         return None
 
     headers = {
-        "Authorization": f"KakaoAK {KAKAO_REST_API_KEY}",
+        "X-NCP-APIGW-API-KEY-ID": NAVER_CLIENT_ID,
+        "X-NCP-APIGW-API-KEY": NAVER_CLIENT_SECRET,
     }
     params = {
         "query": address,
     }
 
     try:
-        response = requests.get(KAKAO_GEOCODE_URL, headers=headers, params=params, timeout=10)
+        response = requests.get(NAVER_GEOCODE_URL, headers=headers, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
 
-        documents = data.get("documents", [])
-        if not documents:
+        addresses = data.get("addresses", [])
+        if not addresses:
             return None
 
-        doc = documents[0]
+        addr = addresses[0]
         return {
-            "latitude": float(doc.get("y", 0)),
-            "longitude": float(doc.get("x", 0)),
+            "latitude": float(addr.get("y", 0)),
+            "longitude": float(addr.get("x", 0)),
         }
 
     except requests.exceptions.RequestException as e:
@@ -225,8 +228,8 @@ def load_geocoded_keys() -> set:
 
 def geocode_schools():
     """수집된 학교 데이터에 좌표를 추가합니다."""
-    if not KAKAO_REST_API_KEY:
-        print("[경고] KAKAO_REST_API_KEY가 설정되지 않았습니다. 지오코딩을 건너뜁니다.")
+    if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
+        print("[경고] NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET이 설정되지 않았습니다. 지오코딩을 건너뜁니다.")
         return
 
     if not RAW_OUTPUT_FILE.exists():

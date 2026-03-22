@@ -1,12 +1,11 @@
 generator client {
   provider        = "prisma-client"
   output          = "../src/generated/prisma"
-  previewFeatures = ["postgresqlExtensions"]
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider   = "postgresql"
-  extensions = [postgis]
 }
 
 // 학원 정보

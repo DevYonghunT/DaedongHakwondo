@@ -7,7 +7,7 @@ AI 분석으로 사교육 현황 인사이트를 제공한다.
 
 ## 기술 스택
 - Frontend: Next.js 14 (App Router), TypeScript, Tailwind CSS
-- Map: Kakao Map SDK
+- Map: Leaflet + OpenStreetMap (MarkerCluster)
 - Backend: Next.js API Routes
 - DB: PostgreSQL 15 (Docker, PostGIS)
 - ORM: Prisma
@@ -20,13 +20,15 @@ AI 분석으로 사교육 현황 인사이트를 제공한다.
   - 학원교습소정보 API
   - 학교기본정보 API
 - 학교알리미 공개용데이터 (schoolinfo.go.kr)
-- 카카오맵 Geocoding API
+- 네이버 클라우드 플랫폼 Geocoding API (지오코딩용)
+- Leaflet + OpenStreetMap (지도 표시용)
 
 ## 환경 변수
 - DATABASE_URL: PostgreSQL 연결 문자열
 - NEIS_API_KEY: 나이스 Open API 인증키
-- NEXT_PUBLIC_KAKAO_JS_APP_KEY: 카카오 JavaScript 앱 키
-- KAKAO_REST_API_KEY: 카카오 REST API 키
+- CLAUDE_API_KEY: Claude API 키 (ANTHROPIC_API_KEY 대체)
+- NAVER_CLIENT_ID: 네이버 클라우드 플랫폼 Client ID (지오코딩용)
+- NAVER_CLIENT_SECRET: 네이버 클라우드 플랫폼 Client Secret (지오코딩용)
 - ANTHROPIC_API_KEY: Claude API 키
 
 ## 코딩 컨벤션

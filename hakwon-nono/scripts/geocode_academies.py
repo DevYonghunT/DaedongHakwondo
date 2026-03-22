@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 대동학원도 - 학원 주소 지오코딩 스크립트
-Kakao Local API를 사용하여 학원/학교 주소를 위도/경도 좌표로 변환합니다.
+Naver Cloud Platform Geocoding API를 사용하여 학원/학교 주소를 위도/경도 좌표로 변환합니다.
 """
 
 import json
 import os
 import sys
 import time
+from typing import Optional
 import requests
 from pathlib import Path
 from dotenv import load_dotenv
@@ -16,9 +17,10 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env.local")
 
-# Kakao API 설정
-KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY")
-KAKAO_GEOCODE_URL = "https://dapi.kakao.com/v2/local/search/address.json"
+# Naver Cloud Platform Geocoding API 설정
+NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
+NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
+NAVER_GEOCODE_URL = "https://maps.apigw.ntruss.com/map-geocode/v2/geocode"
 
 # 데이터 경로
 DATA_DIR = PROJECT_ROOT / "data"
@@ -67,35 +69,36 @@ def load_failed_keys() -> set:
     return keys
 
 
-def geocode_address(address: str) -> dict | None:
+def geocode_address(address: str) -> Optional[dict]:
     """
-    Kakao Local API를 사용하여 주소를 지오코딩합니다.
+    Naver Cloud Platform Geocoding API를 사용하여 주소를 지오코딩합니다.
     성공 시 {"latitude": float, "longitude": float} 반환, 실패 시 None
     """
     if not address or not address.strip():
         return None
 
     headers = {
-        "Authorization": f"KakaoAK {KAKAO_REST_API_KEY}",
+        "X-NCP-APIGW-API-KEY-ID": NAVER_CLIENT_ID,
+        "X-NCP-APIGW-API-KEY": NAVER_CLIENT_SECRET,
     }
     params = {
         "query": address,
     }
 
     try:
-        response = requests.get(KAKAO_GEOCODE_URL, headers=headers, params=params, timeout=10)
+        response = requests.get(NAVER_GEOCODE_URL, headers=headers, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
 
-        documents = data.get("documents", [])
-        if not documents:
+        addresses = data.get("addresses", [])
+        if not addresses:
             return None
 
         # 첫 번째 결과 사용
-        doc = documents[0]
+        addr = addresses[0]
         return {
-            "latitude": float(doc.get("y", 0)),
-            "longitude": float(doc.get("x", 0)),
+            "latitude": float(addr.get("y", 0)),
+            "longitude": float(addr.get("x", 0)),
         }
 
     except requests.exceptions.RequestException as e:
@@ -122,9 +125,9 @@ def build_address(record: dict) -> str:
 def main():
     """메인 실행 함수"""
     # API 키 확인
-    if not KAKAO_REST_API_KEY:
-        print("[오류] KAKAO_REST_API_KEY가 설정되지 않았습니다.")
-        print("프로젝트 루트의 .env.local 파일에 KAKAO_REST_API_KEY를 설정해주세요.")
+    if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
+        print("[오류] NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET이 설정되지 않았습니다.")
+        print("프로젝트 루트의 .env.local 파일에 NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET을 설정해주세요.")
         sys.exit(1)
 
     # 입력 파일 확인

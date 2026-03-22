@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import KakaoMap, { type MapBounds, type MapMarkerData } from '@/components/KakaoMap';
+import MapView, { type MapBounds, type MapMarkerData } from '@/components/MapView';
 import FilterPanel, { type ViewMode } from '@/components/FilterPanel';
 import RegionStats, { type RegionStatsData } from '@/components/RegionStats';
 import SchoolSearch, { type SchoolResult } from '@/components/SchoolSearch';
@@ -20,7 +20,7 @@ export default function Home() {
   const [isLoadingAcademies, setIsLoadingAcademies] = useState(false);
 
   // 지도 인스턴스 참조
-  const mapRef = useRef<kakao.maps.Map | null>(null);
+  const mapRef = useRef<unknown>(null);
   const boundsRef = useRef<MapBounds | null>(null);
 
   // 학원 데이터 로드
@@ -90,7 +90,7 @@ export default function Home() {
   );
 
   // 지도 준비 완료 시
-  const handleMapReady = useCallback((map: kakao.maps.Map) => {
+  const handleMapReady = useCallback((map: unknown) => {
     mapRef.current = map;
   }, []);
 
@@ -98,11 +98,10 @@ export default function Home() {
   const handleSchoolSelect = useCallback((school: SchoolResult) => {
     setSelectedSchool(school);
 
-    // 학교 위치로 지도 이동
-    if (school.latitude && school.longitude && mapRef.current) {
-      const position = new kakao.maps.LatLng(school.latitude, school.longitude);
-      mapRef.current.setCenter(position);
-      mapRef.current.setLevel(4); // 줌인
+    // 학교 위치로 지도 이동 (Leaflet)
+    if (school.latitude && school.longitude && mapRef.current && window.L) {
+      const map = mapRef.current as L.Map;
+      map.setView([school.latitude, school.longitude], 14);
     }
   }, []);
 
@@ -169,10 +168,11 @@ export default function Home() {
       {/* 메인 컨텐츠 영역 */}
       <main className="flex-1 relative overflow-hidden">
         {/* 지도 */}
-        <KakaoMap
+        <MapView
           onMapReady={handleMapReady}
           onBoundsChanged={handleBoundsChanged}
           markers={viewMode === 'marker' ? markers : []}
+          heatmapData={viewMode === 'heatmap' ? markers : []}
           onMarkerClick={(marker) => {
             console.log('마커 클릭:', marker);
           }}
