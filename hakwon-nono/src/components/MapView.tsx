@@ -27,6 +27,7 @@ interface MapViewProps {
   onMarkerClick?: (marker: MapMarkerData) => void;
   selectedSchoolPosition?: { lat: number; lng: number } | null;
   radiusKm?: number;
+  onSchoolMarkerClick?: () => void;
 }
 
 // Leaflet 줌 레벨 변환 (카카오 레벨 8 → Leaflet 약 7)
@@ -40,12 +41,15 @@ export default function MapView({
   onMarkerClick,
   selectedSchoolPosition,
   radiusKm,
+  onSchoolMarkerClick,
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<L.Layer | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
+  const schoolMarkerRef = useRef<L.Marker | null>(null);
+  const lastSchoolPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [heatPluginReady, setHeatPluginReady] = useState(false);
@@ -146,6 +150,38 @@ export default function MapView({
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map);
+
+    // 사용자 현재 위치로 이동
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          map.setView([latitude, longitude], 13);
+
+          // 현재 위치 마커 표시
+          const locationIcon = L.divIcon({
+            html: `<div style="
+              width:16px;height:16px;
+              background:#3B82F6;
+              border:3px solid white;
+              border-radius:50%;
+              box-shadow:0 0 0 3px rgba(59,130,246,0.3), 0 2px 4px rgba(0,0,0,0.3);
+            "></div>`,
+            className: 'current-location-marker',
+            iconSize: L.point(16, 16),
+            iconAnchor: L.point(8, 8),
+          });
+          L.marker([latitude, longitude], { icon: locationIcon, zIndexOffset: 1000 })
+            .addTo(map)
+            .bindPopup('<strong>현재 위치</strong>');
+        },
+        () => {
+          // 위치 권한 거부 시 기본 위치(서울) 유지
+          console.log('위치 권한이 거부되어 기본 위치를 사용합니다.');
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 600000 }
+      );
+    }
 
     mapInstanceRef.current = map;
 
@@ -299,11 +335,54 @@ export default function MapView({
       ).addTo(mapInstanceRef.current);
 
       circleRef.current = circle;
-
-      // 원 범위에 맞춰 지도 이동
-      mapInstanceRef.current.fitBounds(circle.getBounds());
     }
   }, [selectedSchoolPosition, radiusKm, isLoaded]);
+
+  // 선택된 학교 마커 표시 + 지도 이동 (🏫 아이콘)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isLoaded || !window.L) return;
+
+    const L = window.L;
+    const map = mapInstanceRef.current;
+
+    // 기존 학교 마커 제거
+    if (schoolMarkerRef.current) {
+      schoolMarkerRef.current.remove();
+      schoolMarkerRef.current = null;
+    }
+
+    if (selectedSchoolPosition) {
+      const schoolIcon = L.divIcon({
+        className: 'school-marker',
+        html: '<div style="background:#4338ca;color:white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);">🏫</div>',
+        iconSize: L.point(40, 40),
+        iconAnchor: L.point(20, 20),
+      });
+
+      const marker = L.marker(
+        [selectedSchoolPosition.lat, selectedSchoolPosition.lng],
+        { icon: schoolIcon, zIndexOffset: 2000 }
+      ).addTo(map);
+
+      marker.on('click', () => {
+        onSchoolMarkerClick?.();
+      });
+
+      schoolMarkerRef.current = marker;
+
+      // 학교 위치로 지도 이동 + 확대 (새 학교 선택 시에만)
+      const lastPos = lastSchoolPosRef.current;
+      if (!lastPos || lastPos.lat !== selectedSchoolPosition.lat || lastPos.lng !== selectedSchoolPosition.lng) {
+        map.setView(
+          [selectedSchoolPosition.lat, selectedSchoolPosition.lng],
+          16,
+        );
+        lastSchoolPosRef.current = selectedSchoolPosition;
+      }
+    } else {
+      lastSchoolPosRef.current = null;
+    }
+  }, [selectedSchoolPosition, isLoaded, onSchoolMarkerClick]);
 
   // 클린업
   useEffect(() => {
@@ -336,6 +415,10 @@ export default function MapView({
           border: none !important;
         }
         .marker-cluster-custom {
+          background: none !important;
+          border: none !important;
+        }
+        .school-marker {
           background: none !important;
           border: none !important;
         }

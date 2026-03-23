@@ -20,7 +20,7 @@ export default function RegionStats({ stats }: RegionStatsProps) {
   if (!stats || stats.total === 0) return null;
 
   return (
-    <div className="absolute bottom-6 right-4 z-10 w-72">
+    <div className="absolute bottom-6 right-4 z-[1000] w-72">
       <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         {/* 헤더 */}
         <div className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600">

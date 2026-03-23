@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import MapView, { type MapBounds, type MapMarkerData } from '@/components/MapView';
 import FilterPanel, { type ViewMode } from '@/components/FilterPanel';
 import RegionStats, { type RegionStatsData } from '@/components/RegionStats';
 import SchoolSearch, { type SchoolResult } from '@/components/SchoolSearch';
 import SchoolDashboard from '@/components/SchoolDashboard';
+import AcademyDetail from '@/components/AcademyDetail';
+import SchoolDetail from '@/components/SchoolDetail';
+import RecommendPanel from '@/components/RecommendPanel';
 import { ALL_REALMS } from '@/lib/constants';
 
 export default function Home() {
@@ -18,23 +21,44 @@ export default function Home() {
   const [selectedSchool, setSelectedSchool] = useState<SchoolResult | null>(null);
   const [schoolRadius, setSchoolRadius] = useState(2);
   const [isLoadingAcademies, setIsLoadingAcademies] = useState(false);
+  const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
+  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedAcademyId, setSelectedAcademyId] = useState<string | null>(null);
+  const [showSchoolDetail, setShowSchoolDetail] = useState(false);
+  const [showRecommend, setShowRecommend] = useState(false);
 
   // 지도 인스턴스 참조
   const mapRef = useRef<unknown>(null);
   const boundsRef = useRef<MapBounds | null>(null);
 
   // 학원 데이터 로드
+  const selectedRealmsRef = useRef<string[]>(selectedRealms);
+  selectedRealmsRef.current = selectedRealms;
+
   const fetchAcademies = useCallback(
-    async (bounds: MapBounds) => {
+    async (bounds: MapBounds, realmsOverride?: string[]) => {
       setIsLoadingAcademies(true);
+      // 300ms 이상 걸릴 때만 로딩 표시 (깜박임 방지)
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+      loadingTimerRef.current = setTimeout(() => setShowLoadingIndicator(true), 300);
 
       try {
-        const realmParam = selectedRealms.length < ALL_REALMS.length
-          ? `&realm=${encodeURIComponent(selectedRealms.join(','))}`
+        const realms = realmsOverride ?? selectedRealmsRef.current;
+
+        // 선택된 분야가 없으면 빈 결과 표시
+        if (realms.length === 0) {
+          setMarkers([]);
+          setRegionStats({ total: 0, breakdown: [] });
+          setIsLoadingAcademies(false);
+          return;
+        }
+
+        const realmParam = realms.length < ALL_REALMS.length
+          ? `&realm=${encodeURIComponent(realms.join(','))}`
           : '';
 
         const res = await fetch(
-          `/api/academies?swLat=${bounds.sw.lat}&swLng=${bounds.sw.lng}&neLat=${bounds.ne.lat}&neLng=${bounds.ne.lng}${realmParam}&limit=500`
+          `/api/academies?swLat=${bounds.sw.lat}&swLng=${bounds.sw.lng}&neLat=${bounds.ne.lat}&neLng=${bounds.ne.lng}${realmParam}&limit=5000`
         );
 
         if (!res.ok) throw new Error('데이터 조회 실패');
@@ -75,9 +99,11 @@ export default function Home() {
         console.error('학원 데이터 조회 오류:', err);
       } finally {
         setIsLoadingAcademies(false);
+        if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+        setShowLoadingIndicator(false);
       }
     },
-    [selectedRealms]
+    []
   );
 
   // 지도 바운드 변경 시
@@ -97,13 +123,18 @@ export default function Home() {
   // 학교 선택 시
   const handleSchoolSelect = useCallback((school: SchoolResult) => {
     setSelectedSchool(school);
-
-    // 학교 위치로 지도 이동 (Leaflet)
-    if (school.latitude && school.longitude && mapRef.current && window.L) {
-      const map = mapRef.current as L.Map;
-      map.setView([school.latitude, school.longitude], 14);
-    }
+    setShowSchoolDetail(true);
+    setSelectedAcademyId(null);
+    // 지도 이동은 MapView의 selectedSchoolPosition → flyTo effect에서 처리
   }, []);
+
+  // 학교 위치 메모이제이션 (매 렌더마다 새 객체 생성 방지)
+  const schoolPosition = useMemo(() => {
+    if (selectedSchool?.latitude && selectedSchool?.longitude) {
+      return { lat: selectedSchool.latitude, lng: selectedSchool.longitude };
+    }
+    return null;
+  }, [selectedSchool?.latitude, selectedSchool?.longitude]);
 
   // 학교 대시보드 닫기
   const handleCloseDashboard = useCallback(() => {
@@ -114,14 +145,9 @@ export default function Home() {
   const handleRealmsChange = useCallback(
     (realms: string[]) => {
       setSelectedRealms(realms);
-      // 현재 바운드로 다시 조회
+      // 변경된 realms를 직접 전달하여 클로저 문제 방지
       if (boundsRef.current) {
-        // 약간의 딜레이를 줘서 상태 업데이트 반영
-        setTimeout(() => {
-          if (boundsRef.current) {
-            fetchAcademies(boundsRef.current);
-          }
-        }, 100);
+        fetchAcademies(boundsRef.current, realms);
       }
     },
     [fetchAcademies]
@@ -130,7 +156,7 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen">
       {/* 헤더 */}
-      <header className="flex-shrink-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-20 shadow-sm">
+      <header className="flex-shrink-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-[1100] shadow-sm">
         <div className="flex items-center gap-3 flex-1">
           {/* 로고 */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
@@ -161,6 +187,24 @@ export default function Home() {
             >
               지역 비교
             </Link>
+            <Link
+              href="/tuition"
+              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              수강료 현황
+            </Link>
+            <Link
+              href="/equity"
+              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              접근성 분석
+            </Link>
+            <Link
+              href="/insights"
+              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              데이터 인사이트
+            </Link>
           </nav>
         </div>
       </header>
@@ -174,19 +218,24 @@ export default function Home() {
           markers={viewMode === 'marker' ? markers : []}
           heatmapData={viewMode === 'heatmap' ? markers : []}
           onMarkerClick={(marker) => {
-            console.log('마커 클릭:', marker);
+            if (marker.type !== 'school') {
+              setSelectedAcademyId(marker.id);
+              setSelectedSchool(null); // 학교 대시보드 닫기
+            }
           }}
-          selectedSchoolPosition={
-            selectedSchool?.latitude && selectedSchool?.longitude
-              ? { lat: selectedSchool.latitude, lng: selectedSchool.longitude }
-              : null
-          }
+          selectedSchoolPosition={schoolPosition}
           radiusKm={selectedSchool ? schoolRadius : undefined}
+          onSchoolMarkerClick={() => {
+            if (selectedSchool) {
+              setShowSchoolDetail(true);
+              setSelectedAcademyId(null);
+            }
+          }}
         />
 
         {/* 로딩 인디케이터 */}
-        {isLoadingAcademies && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+        {showLoadingIndicator && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1100]">
             <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-gray-200 flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               <span className="text-sm text-gray-600">학원 데이터 로딩 중...</span>
@@ -207,7 +256,7 @@ export default function Home() {
 
         {/* 범례 (히트맵 모드일 때) */}
         {viewMode === 'heatmap' && (
-          <div className="absolute bottom-6 left-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-4 py-3">
+          <div className="absolute bottom-6 left-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-4 py-3">
             <p className="text-xs font-medium text-gray-600 mb-2">학원 밀집도</p>
             <div className="flex items-center gap-1">
               <span className="text-xs text-gray-400">낮음</span>
@@ -231,6 +280,53 @@ export default function Home() {
             school={selectedSchool}
             onClose={handleCloseDashboard}
             onRadiusChange={setSchoolRadius}
+          />
+        )}
+
+        {/* 학원 상세 정보 (마커 클릭 시 슬라이드 인) */}
+        {selectedAcademyId && (
+          <AcademyDetail
+            academyId={selectedAcademyId}
+            onClose={() => setSelectedAcademyId(null)}
+          />
+        )}
+
+        {/* 학교 상세 정보 (학교 마커 클릭 시 슬라이드 인) */}
+        {showSchoolDetail && selectedSchool && (
+          <SchoolDetail
+            schoolId={selectedSchool.id}
+            onClose={() => setShowSchoolDetail(false)}
+          />
+        )}
+
+        {/* AI 학원 추천 버튼 */}
+        {!showRecommend && (
+          <button
+            onClick={() => setShowRecommend(true)}
+            className="absolute bottom-6 right-6 z-[1000] bg-gradient-to-r from-violet-500 to-blue-500 text-white px-4 py-3 rounded-xl shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 hover:from-violet-600 hover:to-blue-600 transition-all flex items-center gap-2 text-sm font-semibold"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            AI 학원 추천
+          </button>
+        )}
+
+        {/* AI 학원 추천 패널 */}
+        {showRecommend && (
+          <RecommendPanel
+            school={
+              selectedSchool
+                ? {
+                    id: selectedSchool.id,
+                    name: selectedSchool.schoolNm,
+                    kind: selectedSchool.schoolKind,
+                    lat: selectedSchool.latitude,
+                    lng: selectedSchool.longitude,
+                  }
+                : null
+            }
+            onClose={() => setShowRecommend(false)}
           />
         )}
       </main>

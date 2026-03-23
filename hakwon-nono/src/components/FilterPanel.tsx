@@ -42,7 +42,7 @@ export default function FilterPanel({
   const isAllSelected = selectedRealms.length === ALL_REALMS.length;
 
   return (
-    <div className="absolute top-4 left-4 z-10">
+    <div className="absolute top-4 left-4 z-[1000]">
       {/* 토글 버튼 */}
       <button
         onClick={() => setIsOpen(!isOpen)}

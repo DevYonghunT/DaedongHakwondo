@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const swLng = parseFloat(searchParams.get('swLng') || '');
     const neLat = parseFloat(searchParams.get('neLat') || '');
     const neLng = parseFloat(searchParams.get('neLng') || '');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '500', 10), 1000);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '500', 10), 10000);
 
     // 파라미터 유효성 검사
     if (isNaN(swLat) || isNaN(swLng) || isNaN(neLat) || isNaN(neLng)) {
