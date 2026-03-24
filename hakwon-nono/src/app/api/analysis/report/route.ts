@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { anthropic } from '@/lib/anthropic';
+import { getAnthropicClient } from '@/lib/anthropic';
 import { REGION_ANALYSIS_PROMPT } from '@/lib/prompts';
 import { REPORT_CACHE_DAYS } from '@/lib/constants';
 
@@ -53,18 +53,13 @@ export async function POST(request: NextRequest) {
       JSON.stringify(regionData.stats, null, 2)
     );
 
+    const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-3-haiku-20240307',
       max_tokens: 2000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+      messages: [{ role: 'user', content: prompt }],
     });
 
-    // 응답에서 텍스트 추출
     const responseText = message.content
       .filter((block) => block.type === 'text')
       .map((block) => ('text' in block ? block.text : ''))

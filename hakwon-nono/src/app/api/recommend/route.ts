@@ -157,17 +157,11 @@ ${academyList}
 
     const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-3-haiku-20240307',
       max_tokens: 2000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+      messages: [{ role: 'user', content: prompt }],
     });
 
-    // 응답 텍스트 추출
     const recommendation = message.content
       .filter((block) => block.type === 'text')
       .map((block) => ('text' in block ? block.text : ''))

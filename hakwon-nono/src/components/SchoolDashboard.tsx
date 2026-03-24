@@ -29,12 +29,14 @@ interface SchoolDashboardProps {
   school: SchoolResult;
   onClose: () => void;
   onRadiusChange?: (radius: number) => void;
+  embedded?: boolean;
 }
 
 export default function SchoolDashboard({
   school,
   onClose,
   onRadiusChange,
+  embedded,
 }: SchoolDashboardProps) {
   const [radius, setRadius] = useState(2);
   const [stats, setStats] = useState<NearbyStats | null>(null);
@@ -90,7 +92,7 @@ export default function SchoolDashboard({
   const badge = getSchoolKindBadge(school.schoolKind);
 
   return (
-    <div className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white shadow-2xl z-30 flex flex-col overflow-hidden animate-slide-in-right">
+    <div className={embedded ? "flex flex-col h-full overflow-hidden" : "fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white shadow-2xl z-30 flex flex-col overflow-hidden animate-slide-in-right"}>
       {/* 헤더 */}
       <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-5">
         <div className="flex items-start justify-between">

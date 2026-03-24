@@ -33,6 +33,7 @@ export interface AcademyDetailData {
 interface AcademyDetailProps {
   academyId: string;
   onClose: () => void;
+  embedded?: boolean;
 }
 
 /** 날짜 문자열(YYYYMMDD) → 보기 좋은 형식 */
@@ -49,7 +50,7 @@ function formatFee(fee: number): string {
   return fee.toLocaleString() + '원';
 }
 
-export default function AcademyDetail({ academyId, onClose }: AcademyDetailProps) {
+export default function AcademyDetail({ academyId, onClose, embedded }: AcademyDetailProps) {
   const [academy, setAcademy] = useState<AcademyDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export default function AcademyDetail({ academyId, onClose }: AcademyDetailProps
     : '#6B7280';
 
   return (
-    <div className="fixed top-14 right-0 bottom-8 w-full sm:w-[400px] z-[1100] flex flex-col bg-white shadow-2xl border-l border-gray-200 animate-slide-in-right">
+    <div className={embedded ? "flex flex-col h-full" : "fixed top-14 right-0 bottom-8 w-full sm:w-[400px] z-[1100] flex flex-col bg-white shadow-2xl border-l border-gray-200 animate-slide-in-right"}>
       {/* 헤더 */}
       <div className="flex-shrink-0 px-5 py-4 bg-gradient-to-r from-indigo-500 to-blue-600">
         <div className="flex items-start justify-between">

@@ -40,9 +40,10 @@ interface SchoolDetailData {
 interface SchoolDetailProps {
   schoolId: string;
   onClose: () => void;
+  embedded?: boolean;
 }
 
-export default function SchoolDetail({ schoolId, onClose }: SchoolDetailProps) {
+export default function SchoolDetail({ schoolId, onClose, embedded }: SchoolDetailProps) {
   const [data, setData] = useState<SchoolDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export default function SchoolDetail({ schoolId, onClose }: SchoolDetailProps) {
   };
 
   return (
-    <div className="fixed top-14 right-0 bottom-8 w-full sm:w-[400px] z-[1100] flex flex-col bg-white shadow-2xl border-l border-gray-200 animate-slide-in-right">
+    <div className={embedded ? "flex flex-col h-full" : "fixed top-14 right-0 bottom-8 w-full sm:w-[400px] z-[1100] flex flex-col bg-white shadow-2xl border-l border-gray-200 animate-slide-in-right"}>
       {/* 헤더 */}
       <div className="flex-shrink-0 px-5 py-4 bg-gradient-to-r from-indigo-600 to-purple-600">
         <div className="flex items-start justify-between">

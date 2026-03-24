@@ -19,27 +19,33 @@ interface RegionStatsProps {
 export default function RegionStats({ stats }: RegionStatsProps) {
   if (!stats || stats.total === 0) return null;
 
+  const sorted = [...stats.breakdown]
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const top5 = sorted.slice(0, 5);
+  const remaining = sorted.length - 5;
+
   return (
-    <div className="absolute bottom-6 right-4 z-[1000] w-72">
-      <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        {/* 헤더 */}
-        <div className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-blue-100">현재 화면 영역</span>
-            <span className="text-lg font-bold text-white">
-              {stats.total.toLocaleString()}개
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex items-stretch overflow-hidden">
+        {/* 총 개수 */}
+        <div className="px-5 py-3 flex flex-col justify-center border-r border-gray-100">
+          <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">현재 영역</span>
+          <div className="flex items-baseline gap-1 mt-0.5">
+            <span className="text-xl font-bold text-gray-900">
+              {stats.total.toLocaleString()}
             </span>
+            <span className="text-xs text-gray-400">개</span>
           </div>
-          <p className="text-xs text-blue-200 mt-0.5">학원/교습소</p>
         </div>
 
-        {/* 분야별 비율 */}
-        <div className="p-4">
+        {/* 비율 바 + 상위 분야 */}
+        <div className="px-4 py-3 flex items-center gap-4">
           {/* 비율 바 */}
-          <div className="flex h-3 rounded-full overflow-hidden mb-3">
-            {stats.breakdown
+          <div className="flex h-2 rounded-full overflow-hidden w-32">
+            {sorted
               .filter((item) => item.ratio > 0)
-              .sort((a, b) => b.ratio - a.ratio)
               .map((item) => (
                 <div
                   key={item.realm}
@@ -48,44 +54,31 @@ export default function RegionStats({ stats }: RegionStatsProps) {
                     width: `${item.ratio * 100}%`,
                     backgroundColor: REALM_COLORS[item.realm] || '#6B7280',
                   }}
-                  title={`${item.realm}: ${(item.ratio * 100).toFixed(1)}%`}
+                  title={`${REALM_LABELS[item.realm] || item.realm}: ${(item.ratio * 100).toFixed(1)}%`}
                 />
               ))}
           </div>
 
-          {/* 분야별 상세 */}
-          <div className="space-y-1.5">
-            {stats.breakdown
-              .filter((item) => item.count > 0)
-              .sort((a, b) => b.count - a.count)
-              .slice(0, 5)
-              .map((item) => (
-                <div key={item.realm} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: REALM_COLORS[item.realm] || '#6B7280' }}
-                    />
-                    <span className="text-gray-600">
-                      {REALM_LABELS[item.realm] || item.realm}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-800 font-medium">
-                      {item.count.toLocaleString()}
-                    </span>
-                    <span className="text-gray-400 w-12 text-right">
-                      {(item.ratio * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-
-            {/* 나머지 분야가 있으면 표시 */}
-            {stats.breakdown.filter((item) => item.count > 0).length > 5 && (
-              <div className="text-xs text-gray-400 text-center pt-1">
-                +{stats.breakdown.filter((item) => item.count > 0).length - 5}개 분야 더보기
+          {/* 상위 3개 분야 */}
+          <div className="hidden sm:flex items-center gap-3">
+            {top5.slice(0, 3).map((item) => (
+              <div key={item.realm} className="flex items-center gap-1.5">
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: REALM_COLORS[item.realm] || '#6B7280' }}
+                />
+                <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">
+                  {REALM_LABELS[item.realm] || item.realm}
+                </span>
+                <span className="text-[11px] text-gray-400">
+                  {(item.ratio * 100).toFixed(0)}%
+                </span>
               </div>
+            ))}
+            {remaining > 0 && (
+              <span className="text-[10px] text-gray-400">
+                +{remaining}
+              </span>
             )}
           </div>
         </div>

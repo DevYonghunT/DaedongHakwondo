@@ -26,6 +26,10 @@ export default function Home() {
   const [selectedAcademyId, setSelectedAcademyId] = useState<string | null>(null);
   const [showSchoolDetail, setShowSchoolDetail] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // 사이드패널 활성 여부
+  const hasSidePanel = !!(selectedAcademyId || (showSchoolDetail && selectedSchool) || showRecommend || selectedSchool);
 
   // 지도 인스턴스 참조
   const mapRef = useRef<unknown>(null);
@@ -38,14 +42,12 @@ export default function Home() {
   const fetchAcademies = useCallback(
     async (bounds: MapBounds, realmsOverride?: string[]) => {
       setIsLoadingAcademies(true);
-      // 300ms 이상 걸릴 때만 로딩 표시 (깜박임 방지)
       if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
       loadingTimerRef.current = setTimeout(() => setShowLoadingIndicator(true), 300);
 
       try {
         const realms = realmsOverride ?? selectedRealmsRef.current;
 
-        // 선택된 분야가 없으면 빈 결과 표시
         if (realms.length === 0) {
           setMarkers([]);
           setRegionStats({ total: 0, breakdown: [] });
@@ -66,7 +68,6 @@ export default function Home() {
         const data = await res.json();
         const academies = data.academies || [];
 
-        // 마커 데이터 변환
         const newMarkers: MapMarkerData[] = academies
           .filter((a: { latitude: number | null; longitude: number | null }) => a.latitude && a.longitude)
           .map((a: { id: string; latitude: number; longitude: number; academyNm: string; realmScNm: string | null }) => ({
@@ -80,7 +81,6 @@ export default function Home() {
 
         setMarkers(newMarkers);
 
-        // 통계 계산
         const realmCounts: Record<string, number> = {};
         newMarkers.forEach((m: MapMarkerData) => {
           const realm = m.realm || '기타';
@@ -106,7 +106,6 @@ export default function Home() {
     []
   );
 
-  // 지도 바운드 변경 시
   const handleBoundsChanged = useCallback(
     (bounds: MapBounds) => {
       boundsRef.current = bounds;
@@ -115,20 +114,17 @@ export default function Home() {
     [fetchAcademies]
   );
 
-  // 지도 준비 완료 시
   const handleMapReady = useCallback((map: unknown) => {
     mapRef.current = map;
   }, []);
 
-  // 학교 선택 시
   const handleSchoolSelect = useCallback((school: SchoolResult) => {
     setSelectedSchool(school);
     setShowSchoolDetail(true);
     setSelectedAcademyId(null);
-    // 지도 이동은 MapView의 selectedSchoolPosition → flyTo effect에서 처리
+    setShowRecommend(false);
   }, []);
 
-  // 학교 위치 메모이제이션 (매 렌더마다 새 객체 생성 방지)
   const schoolPosition = useMemo(() => {
     if (selectedSchool?.latitude && selectedSchool?.longitude) {
       return { lat: selectedSchool.latitude, lng: selectedSchool.longitude };
@@ -136,16 +132,13 @@ export default function Home() {
     return null;
   }, [selectedSchool?.latitude, selectedSchool?.longitude]);
 
-  // 학교 대시보드 닫기
   const handleCloseDashboard = useCallback(() => {
     setSelectedSchool(null);
   }, []);
 
-  // 분야 필터 변경 시 학원 데이터 리로드
   const handleRealmsChange = useCallback(
     (realms: string[]) => {
       setSelectedRealms(realms);
-      // 변경된 realms를 직접 전달하여 클로저 문제 방지
       if (boundsRef.current) {
         fetchAcademies(boundsRef.current, realms);
       }
@@ -153,190 +146,287 @@ export default function Home() {
     [fetchAcademies]
   );
 
+  // 모든 사이드 패널 닫기
+  const closeAllPanels = useCallback(() => {
+    setSelectedAcademyId(null);
+    setShowSchoolDetail(false);
+    setShowRecommend(false);
+    setSelectedSchool(null);
+  }, []);
+
   return (
-    <div className="flex flex-col h-screen">
-      {/* 헤더 */}
-      <header className="flex-shrink-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-[1100] shadow-sm">
-        <div className="flex items-center gap-3 flex-1">
+    <div className="flex flex-col h-screen bg-white">
+      {/* ── 헤더 (Airbnb 스타일) ── */}
+      <header className="flex-shrink-0 bg-white border-b border-gray-100 z-[1100]">
+        {/* 상단 네비게이션 */}
+        <div className="h-16 px-6 flex items-center gap-4">
           {/* 로고 */}
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0 mr-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-sm">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
-            <span className="text-lg font-bold text-gray-900 hidden sm:inline">
+            <span className="text-lg font-bold text-gray-900 hidden sm:inline tracking-tight">
               대동학원도
             </span>
           </Link>
 
-          {/* 검색 */}
-          <SchoolSearch onSchoolSelect={handleSchoolSelect} />
+          {/* 검색바 (Airbnb 스타일 pill) */}
+          <div className="flex-1 max-w-xl">
+            <SchoolSearch onSchoolSelect={handleSchoolSelect} />
+          </div>
 
-          {/* 네비게이션 */}
-          <nav className="hidden md:flex items-center gap-1 ml-auto">
-            <Link
-              href="/dashboard"
-              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              전국 현황
-            </Link>
-            <Link
-              href="/compare"
-              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              지역 비교
-            </Link>
-            <Link
-              href="/tuition"
-              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              수강료 현황
-            </Link>
-            <Link
-              href="/equity"
-              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              접근성 분석
-            </Link>
-            <Link
-              href="/insights"
-              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              데이터 인사이트
-            </Link>
+          {/* 네비게이션 링크 */}
+          <nav className="hidden lg:flex items-center gap-1 ml-auto">
+            {[
+              { href: '/dashboard', label: '전국 현황' },
+              { href: '/compare', label: '지역 비교' },
+              { href: '/tuition', label: '수강료' },
+              { href: '/equity', label: '접근성' },
+              { href: '/insights', label: '인사이트' },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="px-3.5 py-2 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-full transition-all font-medium"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
+
+          {/* 모바일 메뉴 버튼 */}
+          <button
+            onClick={() => setMobileNavOpen(!mobileNavOpen)}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={mobileNavOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+            </svg>
+          </button>
         </div>
-      </header>
 
-      {/* 메인 컨텐츠 영역 */}
-      <main className="flex-1 relative overflow-hidden">
-        {/* 지도 */}
-        <MapView
-          onMapReady={handleMapReady}
-          onBoundsChanged={handleBoundsChanged}
-          markers={viewMode === 'marker' ? markers : []}
-          heatmapData={viewMode === 'heatmap' ? markers : []}
-          onMarkerClick={(marker) => {
-            if (marker.type !== 'school') {
-              setSelectedAcademyId(marker.id);
-              setSelectedSchool(null); // 학교 대시보드 닫기
-            }
-          }}
-          selectedSchoolPosition={schoolPosition}
-          radiusKm={selectedSchool ? schoolRadius : undefined}
-          onSchoolMarkerClick={() => {
-            if (selectedSchool) {
-              setShowSchoolDetail(true);
-              setSelectedAcademyId(null);
-            }
-          }}
-        />
-
-        {/* 로딩 인디케이터 */}
-        {showLoadingIndicator && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1100]">
-            <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-gray-200 flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-gray-600">학원 데이터 로딩 중...</span>
-            </div>
+        {/* 모바일 네비게이션 드롭다운 */}
+        {mobileNavOpen && (
+          <div className="lg:hidden border-t border-gray-100 px-4 py-2 bg-white animate-fade-in">
+            {[
+              { href: '/dashboard', label: '전국 현황' },
+              { href: '/compare', label: '지역 비교' },
+              { href: '/tuition', label: '수강료 현황' },
+              { href: '/equity', label: '접근성 분석' },
+              { href: '/insights', label: '데이터 인사이트' },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="block px-3 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         )}
 
-        {/* 필터 패널 */}
+        {/* 필터 바 (가로 나열) */}
         <FilterPanel
           selectedRealms={selectedRealms}
           onRealmsChange={handleRealmsChange}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
         />
+      </header>
 
-        {/* 지역 통계 */}
-        <RegionStats stats={regionStats} />
+      {/* ── 메인 콘텐츠 (지도 + 사이드패널) ── */}
+      <main className="flex-1 relative overflow-hidden flex">
+        {/* 지도 영역 */}
+        <div className="flex-1 relative">
+          <MapView
+            onMapReady={handleMapReady}
+            onBoundsChanged={handleBoundsChanged}
+            markers={viewMode === 'marker' ? markers : []}
+            heatmapData={viewMode === 'heatmap' ? markers : []}
+            onMarkerClick={(marker) => {
+              if (marker.type !== 'school') {
+                setSelectedAcademyId(marker.id);
+                setSelectedSchool(null);
+                setShowRecommend(false);
+              }
+            }}
+            selectedSchoolPosition={schoolPosition}
+            radiusKm={selectedSchool ? schoolRadius : undefined}
+            onSchoolMarkerClick={() => {
+              if (selectedSchool) {
+                setShowSchoolDetail(true);
+                setSelectedAcademyId(null);
+              }
+            }}
+          />
 
-        {/* 범례 (히트맵 모드일 때) */}
-        {viewMode === 'heatmap' && (
-          <div className="absolute bottom-6 left-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-4 py-3">
-            <p className="text-xs font-medium text-gray-600 mb-2">학원 밀집도</p>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-400">낮음</span>
-              <div className="flex h-3">
-                {['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#EF4444'].map((color) => (
-                  <div
-                    key={color}
-                    className="w-6 h-3"
-                    style={{ backgroundColor: color, opacity: 0.7 }}
-                  />
-                ))}
+          {/* 로딩 인디케이터 */}
+          {showLoadingIndicator && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1100]">
+              <div className="bg-white px-5 py-2.5 rounded-full shadow-lg border border-gray-100 flex items-center gap-2.5">
+                <div className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-gray-600 font-medium">데이터 로딩 중...</span>
               </div>
-              <span className="text-xs text-gray-400">높음</span>
+            </div>
+          )}
+
+          {/* 지역 통계 (하단 중앙) */}
+          <RegionStats stats={regionStats} />
+
+          {/* 히트맵 범례 */}
+          {viewMode === 'heatmap' && (
+            <div className="absolute bottom-6 left-6 z-[1000] bg-white rounded-2xl shadow-lg border border-gray-100 px-5 py-3.5">
+              <p className="text-xs font-semibold text-gray-500 mb-2 tracking-wide">학원 밀집도</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-gray-400 font-medium">낮음</span>
+                <div className="flex rounded-full overflow-hidden h-2.5">
+                  {['#60A5FA', '#A78BFA', '#F472B6', '#FBBF24', '#F87171'].map((color) => (
+                    <div key={color} className="w-7 h-2.5" style={{ backgroundColor: color }} />
+                  ))}
+                </div>
+                <span className="text-[10px] text-gray-400 font-medium">높음</span>
+              </div>
+            </div>
+          )}
+
+          {/* AI 학원 추천 FAB */}
+          {!showRecommend && (
+            <button
+              onClick={() => {
+                setShowRecommend(true);
+                setSelectedAcademyId(null);
+                setShowSchoolDetail(false);
+              }}
+              className="absolute bottom-6 right-6 z-[1000] bg-gray-900 hover:bg-gray-800 text-white pl-4 pr-5 py-3 rounded-full shadow-xl hover:shadow-2xl transition-all flex items-center gap-2 text-sm font-semibold group"
+            >
+              <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              AI 추천
+            </button>
+          )}
+        </div>
+
+        {/* ── 사이드 패널 (슬라이드 인) ── */}
+        {hasSidePanel && (
+          <div className="w-[420px] flex-shrink-0 border-l border-gray-100 bg-white relative z-[1050] animate-slide-in-right overflow-hidden hidden md:block">
+            {/* 닫기 버튼 */}
+            <button
+              onClick={closeAllPanels}
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white hover:bg-gray-100 shadow-sm border border-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="h-full overflow-y-auto">
+              {/* 학원 상세 */}
+              {selectedAcademyId && (
+                <AcademyDetail
+                  academyId={selectedAcademyId}
+                  onClose={() => setSelectedAcademyId(null)}
+                  embedded
+                />
+              )}
+
+              {/* 학교 상세 */}
+              {showSchoolDetail && selectedSchool && !selectedAcademyId && (
+                <SchoolDetail
+                  schoolId={selectedSchool.id}
+                  onClose={() => setShowSchoolDetail(false)}
+                  embedded
+                />
+              )}
+
+              {/* AI 추천 */}
+              {showRecommend && !selectedAcademyId && !(showSchoolDetail && selectedSchool) && (
+                <RecommendPanel
+                  school={
+                    selectedSchool
+                      ? {
+                          id: selectedSchool.id,
+                          name: selectedSchool.schoolNm,
+                          kind: selectedSchool.schoolKind,
+                          lat: selectedSchool.latitude,
+                          lng: selectedSchool.longitude,
+                        }
+                      : null
+                  }
+                  onClose={() => setShowRecommend(false)}
+                  embedded
+                />
+              )}
+
+              {/* 학교 대시보드 (패널 하단) */}
+              {selectedSchool && !selectedAcademyId && !showSchoolDetail && !showRecommend && (
+                <SchoolDashboard
+                  school={selectedSchool}
+                  onClose={handleCloseDashboard}
+                  onRadiusChange={setSchoolRadius}
+                  embedded
+                />
+              )}
             </div>
           </div>
         )}
 
-        {/* 학교 대시보드 (선택 시 슬라이드 인) */}
-        {selectedSchool && (
-          <SchoolDashboard
-            school={selectedSchool}
-            onClose={handleCloseDashboard}
-            onRadiusChange={setSchoolRadius}
-          />
-        )}
+        {/* 모바일용 사이드패널 (오버레이) */}
+        {hasSidePanel && (
+          <div className="md:hidden fixed inset-0 z-[2000] flex flex-col">
+            {/* 오버레이 배경 */}
+            <div className="flex-1 bg-black/30" onClick={closeAllPanels} />
+            {/* 패널 (하단에서 올라옴) */}
+            <div className="h-[75vh] bg-white rounded-t-3xl shadow-2xl overflow-y-auto animate-slide-up">
+              <div className="sticky top-0 bg-white pt-3 pb-2 px-4 border-b border-gray-100 z-10">
+                <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-2" />
+                <button
+                  onClick={closeAllPanels}
+                  className="absolute top-3 right-4 p-1.5 hover:bg-gray-100 rounded-full"
+                >
+                  <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-        {/* 학원 상세 정보 (마커 클릭 시 슬라이드 인) */}
-        {selectedAcademyId && (
-          <AcademyDetail
-            academyId={selectedAcademyId}
-            onClose={() => setSelectedAcademyId(null)}
-          />
-        )}
-
-        {/* 학교 상세 정보 (학교 마커 클릭 시 슬라이드 인) */}
-        {showSchoolDetail && selectedSchool && (
-          <SchoolDetail
-            schoolId={selectedSchool.id}
-            onClose={() => setShowSchoolDetail(false)}
-          />
-        )}
-
-        {/* AI 학원 추천 버튼 */}
-        {!showRecommend && (
-          <button
-            onClick={() => setShowRecommend(true)}
-            className="absolute bottom-6 right-6 z-[1000] bg-gradient-to-r from-violet-500 to-blue-500 text-white px-4 py-3 rounded-xl shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 hover:from-violet-600 hover:to-blue-600 transition-all flex items-center gap-2 text-sm font-semibold"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            AI 학원 추천
-          </button>
-        )}
-
-        {/* AI 학원 추천 패널 */}
-        {showRecommend && (
-          <RecommendPanel
-            school={
-              selectedSchool
-                ? {
-                    id: selectedSchool.id,
-                    name: selectedSchool.schoolNm,
-                    kind: selectedSchool.schoolKind,
-                    lat: selectedSchool.latitude,
-                    lng: selectedSchool.longitude,
-                  }
-                : null
-            }
-            onClose={() => setShowRecommend(false)}
-          />
+              {selectedAcademyId && (
+                <AcademyDetail
+                  academyId={selectedAcademyId}
+                  onClose={() => setSelectedAcademyId(null)}
+                  embedded
+                />
+              )}
+              {showSchoolDetail && selectedSchool && !selectedAcademyId && (
+                <SchoolDetail
+                  schoolId={selectedSchool.id}
+                  onClose={() => setShowSchoolDetail(false)}
+                  embedded
+                />
+              )}
+              {showRecommend && !selectedAcademyId && !(showSchoolDetail && selectedSchool) && (
+                <RecommendPanel
+                  school={selectedSchool ? { id: selectedSchool.id, name: selectedSchool.schoolNm, kind: selectedSchool.schoolKind, lat: selectedSchool.latitude, lng: selectedSchool.longitude } : null}
+                  onClose={() => setShowRecommend(false)}
+                  embedded
+                />
+              )}
+              {selectedSchool && !selectedAcademyId && !showSchoolDetail && !showRecommend && (
+                <SchoolDashboard
+                  school={selectedSchool}
+                  onClose={handleCloseDashboard}
+                  onRadiusChange={setSchoolRadius}
+                  embedded
+                />
+              )}
+            </div>
+          </div>
         )}
       </main>
-
-      {/* 푸터 */}
-      <footer className="flex-shrink-0 h-8 bg-gray-50 border-t border-gray-200 flex items-center justify-center px-4">
-        <p className="text-xs text-gray-400">
-          교육 공공데이터 활용 | 나이스 교육정보 개방포털 | 제8회 교육 공공데이터 AI활용대회 출품작
-        </p>
-      </footer>
     </div>
   );
 }

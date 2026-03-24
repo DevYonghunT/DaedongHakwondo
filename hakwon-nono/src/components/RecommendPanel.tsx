@@ -30,9 +30,10 @@ interface RecommendPanelProps {
     lng: number | null;
   } | null;
   onClose: () => void;
+  embedded?: boolean;
 }
 
-export default function RecommendPanel({ school, onClose }: RecommendPanelProps) {
+export default function RecommendPanel({ school, onClose, embedded }: RecommendPanelProps) {
   // 폼 상태
   const [budget, setBudget] = useState(30);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -145,7 +146,7 @@ export default function RecommendPanel({ school, onClose }: RecommendPanelProps)
   const radiusOptions = [1, 2, 3, 5];
 
   return (
-    <div className="fixed top-0 right-0 h-full w-full sm:w-[440px] bg-white shadow-2xl z-30 flex flex-col overflow-hidden animate-slide-in-right">
+    <div className={embedded ? "flex flex-col h-full overflow-hidden" : "fixed top-0 right-0 h-full w-full sm:w-[440px] bg-white shadow-2xl z-30 flex flex-col overflow-hidden animate-slide-in-right"}>
       {/* 헤더 */}
       <div className="flex-shrink-0 bg-gradient-to-r from-violet-600 to-blue-600 text-white p-5">
         <div className="flex items-start justify-between">
