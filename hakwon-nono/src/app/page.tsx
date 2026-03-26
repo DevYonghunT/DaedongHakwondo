@@ -20,7 +20,6 @@ export default function Home() {
   const [regionStats, setRegionStats] = useState<RegionStatsData | null>(null);
   const [selectedSchool, setSelectedSchool] = useState<SchoolResult | null>(null);
   const [schoolRadius, setSchoolRadius] = useState(2);
-  const [isLoadingAcademies, setIsLoadingAcademies] = useState(false);
   const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedAcademyId, setSelectedAcademyId] = useState<string | null>(null);
@@ -41,7 +40,7 @@ export default function Home() {
 
   const fetchAcademies = useCallback(
     async (bounds: MapBounds, realmsOverride?: string[]) => {
-      setIsLoadingAcademies(true);
+
       if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
       loadingTimerRef.current = setTimeout(() => setShowLoadingIndicator(true), 300);
 
@@ -51,7 +50,7 @@ export default function Home() {
         if (realms.length === 0) {
           setMarkers([]);
           setRegionStats({ total: 0, breakdown: [] });
-          setIsLoadingAcademies(false);
+
           return;
         }
 
@@ -81,24 +80,29 @@ export default function Home() {
 
         setMarkers(newMarkers);
 
-        const realmCounts: Record<string, number> = {};
-        newMarkers.forEach((m: MapMarkerData) => {
-          const realm = m.realm || '기타';
-          realmCounts[realm] = (realmCounts[realm] || 0) + 1;
-        });
+        // 정확한 통계는 API에서 제공 (LIMIT 없이 집계된 값)
+        if (data.stats) {
+          setRegionStats(data.stats);
+        } else {
+          // fallback: API가 stats를 반환하지 않는 경우 마커 기반 계산
+          const realmCounts: Record<string, number> = {};
+          newMarkers.forEach((m: MapMarkerData) => {
+            const realm = m.realm || '기타';
+            realmCounts[realm] = (realmCounts[realm] || 0) + 1;
+          });
 
-        const total = newMarkers.length;
-        const breakdown = Object.entries(realmCounts).map(([realm, count]) => ({
-          realm,
-          count,
-          ratio: total > 0 ? count / total : 0,
-        }));
+          const total = newMarkers.length;
+          const breakdown = Object.entries(realmCounts).map(([realm, count]) => ({
+            realm,
+            count,
+            ratio: total > 0 ? count / total : 0,
+          }));
 
-        setRegionStats({ total, breakdown });
+          setRegionStats({ total, breakdown });
+        }
       } catch (err) {
         console.error('학원 데이터 조회 오류:', err);
       } finally {
-        setIsLoadingAcademies(false);
         if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
         setShowLoadingIndicator(false);
       }
@@ -178,7 +182,7 @@ export default function Home() {
           </div>
 
           {/* 네비게이션 링크 */}
-          <nav className="hidden lg:flex items-center gap-1 ml-auto">
+          <nav aria-label="메인 네비게이션" className="hidden lg:flex items-center gap-1 ml-auto">
             {[
               { href: '/dashboard', label: '전국 현황' },
               { href: '/compare', label: '지역 비교' },
@@ -199,6 +203,7 @@ export default function Home() {
           {/* 모바일 메뉴 버튼 */}
           <button
             onClick={() => setMobileNavOpen(!mobileNavOpen)}
+            aria-label={mobileNavOpen ? '메뉴 닫기' : '메뉴 열기'}
             className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -317,6 +322,7 @@ export default function Home() {
             {/* 닫기 버튼 */}
             <button
               onClick={closeAllPanels}
+              aria-label="패널 닫기"
               className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white hover:bg-gray-100 shadow-sm border border-gray-200 transition-colors"
             >
               <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -386,6 +392,7 @@ export default function Home() {
                 <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-2" />
                 <button
                   onClick={closeAllPanels}
+                  aria-label="패널 닫기"
                   className="absolute top-3 right-4 p-1.5 hover:bg-gray-100 rounded-full"
                 >
                   <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

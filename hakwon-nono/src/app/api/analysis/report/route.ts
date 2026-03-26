@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAnthropicClient } from '@/lib/anthropic';
 import { REGION_ANALYSIS_PROMPT } from '@/lib/prompts';
 import { REPORT_CACHE_DAYS } from '@/lib/constants';
+import { rateLimit } from '@/lib/rateLimit';
 
 /**
  * POST /api/analysis/report
@@ -13,6 +14,11 @@ import { REPORT_CACHE_DAYS } from '@/lib/constants';
  */
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for') || 'anonymous';
+    if (!rateLimit(`report:${ip}`, 3, 60000)) {
+      return NextResponse.json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const { regionKey } = body;
 
@@ -67,6 +73,7 @@ export async function POST(request: NextRequest) {
 
     // JSON 파싱 시도
     let reportContent: string;
+    let parseSucceeded = false;
     try {
       // JSON 블록 추출 (코드블록 안에 있을 수 있음)
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -74,6 +81,7 @@ export async function POST(request: NextRequest) {
         // 유효한 JSON인지 검증
         JSON.parse(jsonMatch[0]);
         reportContent = jsonMatch[0];
+        parseSucceeded = true;
       } else {
         throw new Error('JSON 형식의 응답을 찾을 수 없습니다');
       }
@@ -88,24 +96,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 4. 캐시 저장 (upsert)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + REPORT_CACHE_DAYS);
+    // 4. 캐시 저장 (파싱 성공 시에만 - fallback 응답은 캐시하지 않음)
+    if (parseSucceeded) {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + REPORT_CACHE_DAYS);
 
-    await prisma.aiReport.upsert({
-      where: { regionKey },
-      update: {
-        reportContent,
-        dataSnapshot: regionData.stats as object,
-        expiresAt,
-      },
-      create: {
-        regionKey,
-        reportContent,
-        dataSnapshot: regionData.stats as object,
-        expiresAt,
-      },
-    });
+      await prisma.aiReport.upsert({
+        where: { regionKey },
+        update: {
+          reportContent,
+          dataSnapshot: regionData.stats as object,
+          expiresAt,
+        },
+        create: {
+          regionKey,
+          reportContent,
+          dataSnapshot: regionData.stats as object,
+          expiresAt,
+        },
+      });
+    }
 
     return NextResponse.json({
       reportContent,
@@ -134,7 +144,7 @@ async function getRegionData(regionKey: string): Promise<{
 
   if (schoolMatch) {
     const schoolId = schoolMatch[1];
-    const radiusKm = parseInt(schoolMatch[2], 10);
+    const radiusKm = Math.min(parseInt(schoolMatch[2], 10), 5);
 
     // 학교 정보 조회
     const school = await prisma.school.findUnique({

@@ -128,8 +128,8 @@ export default function ComparePage() {
     }
 
     // 가장 많은 분야 비교
-    const top1 = r1.byRealm.sort((a, b) => b.count - a.count)[0];
-    const top2 = r2.byRealm.sort((a, b) => b.count - a.count)[0];
+    const top1 = [...r1.byRealm].sort((a, b) => b.count - a.count)[0];
+    const top2 = [...r2.byRealm].sort((a, b) => b.count - a.count)[0];
     if (top1 && top2) {
       if (top1.realm === top2.realm) {
         insights.push(`두 지역 모두 ${top1.realm} 분야가 가장 많습니다.`);
@@ -335,7 +335,7 @@ export default function ComparePage() {
                   {/* 분야별 수치 */}
                   <div className="px-6 pb-6">
                     <div className="space-y-2">
-                      {data.byRealm
+                      {[...data.byRealm]
                         .sort((a, b) => b.count - a.count)
                         .map((item) => (
                           <div key={item.realm} className="flex items-center justify-between">

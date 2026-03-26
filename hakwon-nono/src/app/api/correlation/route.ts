@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -15,10 +16,10 @@ export async function GET() {
       realm_diversity: bigint;
       school_count: bigint;
       academy_per_school: number | null;
-    }> = await prisma.$queryRawUnsafe(`
+    }> = await prisma.$queryRaw(Prisma.sql`
       WITH academy_stats AS (
         SELECT
-          SUBSTRING(address FROM '^(\\S+\\s+\\S+)') as sigungu,
+          SUBSTRING(address FROM '^(\S+\s+\S+)') as sigungu,
           COUNT(*) as academy_count,
           ROUND(AVG(CASE WHEN tuition_fee > 0 THEN tuition_fee END)) as avg_tuition,
           COUNT(DISTINCT realm_sc_nm) as realm_diversity
@@ -29,7 +30,7 @@ export async function GET() {
       ),
       school_stats AS (
         SELECT
-          SUBSTRING(address FROM '^(\\S+\\s+\\S+)') as sigungu,
+          SUBSTRING(address FROM '^(\S+\s+\S+)') as sigungu,
           COUNT(*) as school_count
         FROM schools
         WHERE address IS NOT NULL

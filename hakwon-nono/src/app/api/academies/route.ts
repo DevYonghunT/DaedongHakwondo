@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
       where.realmScNm = { in: realmFilter };
     }
 
-    // 학원 조회
+    // 학원 조회 (마커용, LIMIT 적용)
     const academies = await prisma.academy.findMany({
       where,
       select: {
@@ -79,10 +80,40 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
+    // 정확한 통계 조회 (LIMIT 없이 전체 바운드 대상)
+    const realms = realmFilter ?? [];
+    const statsQuery = await prisma.$queryRaw<Array<{ realm_sc_nm: string | null; count: bigint }>>(
+      realmFilter && realmFilter.length > 0
+        ? Prisma.sql`SELECT realm_sc_nm, COUNT(*) as count FROM academies
+            WHERE latitude BETWEEN ${swLat} AND ${neLat}
+            AND longitude BETWEEN ${swLng} AND ${neLng}
+            AND latitude IS NOT NULL AND longitude IS NOT NULL
+            AND realm_sc_nm IN (${Prisma.join(realms)})
+            GROUP BY realm_sc_nm`
+        : Prisma.sql`SELECT realm_sc_nm, COUNT(*) as count FROM academies
+            WHERE latitude BETWEEN ${swLat} AND ${neLat}
+            AND longitude BETWEEN ${swLng} AND ${neLng}
+            AND latitude IS NOT NULL AND longitude IS NOT NULL
+            GROUP BY realm_sc_nm`
+    );
+
+    const statsBreakdown = statsQuery.map((row) => ({
+      realm: row.realm_sc_nm || '기타',
+      count: Number(row.count),
+    }));
+    const statsTotal = statsBreakdown.reduce((sum, r) => sum + r.count, 0);
+
     return NextResponse.json({
       academies,
       count: academies.length,
       bounds: { swLat, swLng, neLat, neLng },
+      stats: {
+        total: statsTotal,
+        breakdown: statsBreakdown.map((b) => ({
+          ...b,
+          ratio: statsTotal > 0 ? b.count / statsTotal : 0,
+        })),
+      },
     });
   } catch (error) {
     console.error('학원 조회 API 오류:', error);

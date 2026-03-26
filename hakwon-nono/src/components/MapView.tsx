@@ -33,6 +33,16 @@ interface MapViewProps {
 // Leaflet 줌 레벨 변환 (카카오 레벨 8 → Leaflet 약 7)
 const kakaoToLeafletZoom = (kakaoLevel: number) => Math.max(1, 14 - kakaoLevel);
 
+// XSS 방지를 위한 HTML 이스케이프 헬퍼
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export default function MapView({
   onMapReady,
   onBoundsChanged,
@@ -261,8 +271,8 @@ export default function MapView({
       // 팝업
       const popupContent = `
         <div style="padding:4px 8px;font-size:13px;min-width:150px;line-height:1.5;">
-          <strong style="font-size:14px;">${markerData.name}</strong>
-          ${markerData.realm ? `<br/><span style="color:${color};font-size:12px;">${markerData.realm}</span>` : ''}
+          <strong style="font-size:14px;">${escapeHtml(markerData.name)}</strong>
+          ${markerData.realm ? `<br/><span style="color:${color};font-size:12px;">${escapeHtml(markerData.realm)}</span>` : ''}
         </div>
       `;
       marker.bindPopup(popupContent);

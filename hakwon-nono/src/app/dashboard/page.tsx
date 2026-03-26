@@ -206,7 +206,7 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-bold text-gray-800 mb-4">시도별 학원 수</h3>
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart
-                    data={stats.bySido.sort((a, b) => b.count - a.count)}
+                    data={[...stats.bySido].sort((a, b) => b.count - a.count)}
                     layout="vertical"
                     margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
                   >
@@ -228,7 +228,7 @@ export default function DashboardPage() {
                     />
                     <Tooltip content={<BarTooltip />} />
                     <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={24}>
-                      {stats.bySido
+                      {[...stats.bySido]
                         .sort((a, b) => b.count - a.count)
                         .map((_, index) => (
                           <Cell key={index} fill={SIDO_COLORS[index % SIDO_COLORS.length]} />

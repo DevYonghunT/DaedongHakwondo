@@ -85,6 +85,8 @@ export default function FilterPanel({
       <div className="relative flex-shrink-0" ref={dropdownRef}>
         <button
           onClick={() => setShowRealmDropdown(!showRealmDropdown)}
+          aria-label="분야 필터 열기"
+          aria-expanded={showRealmDropdown}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border rounded-full transition-all ${
             filterCount > 0
               ? 'border-gray-900 bg-gray-900 text-white'
@@ -173,6 +175,8 @@ export default function FilterPanel({
           <button
             key={realm}
             onClick={() => handleRealmToggle(realm)}
+            aria-pressed={isChecked}
+            aria-label={`${REALM_LABELS[realm] || realm} 필터`}
             className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
               isChecked
                 ? 'bg-white border-gray-300 text-gray-800 hover:border-gray-400'

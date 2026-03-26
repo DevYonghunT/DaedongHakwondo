@@ -18,7 +18,7 @@ export async function GET(
   try {
     const { id } = params;
     const { searchParams } = new URL(request.url);
-    const radiusKm = parseFloat(searchParams.get('radius') || '2');
+    const radiusKm = Math.min(parseFloat(searchParams.get('radius') || '2'), 5);
 
     // 학교 조회
     const school = await prisma.school.findUnique({

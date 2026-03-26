@@ -218,7 +218,7 @@ async function fetchMeal(
   if (!apiKey) return null;
 
   try {
-    const today = new Date();
+    const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
     const todayStr = formatDateYMD(today);
 
     const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?KEY=${apiKey}&Type=json&ATPT_OFCDC_SC_CODE=${atptOfcdcScCode}&SD_SCHUL_CODE=${sdSchulCode}&MLSV_YMD=${todayStr}`;
@@ -260,7 +260,7 @@ async function fetchSchedule(
   if (!apiKey) return [];
 
   try {
-    const today = new Date();
+    const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
     const oneWeekLater = new Date(today);
     oneWeekLater.setDate(today.getDate() + 7);
 

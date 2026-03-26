@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 
 // 접근성 등급 판정
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
 
     // Haversine 공식으로 반경 내 학원 수 계산
     // 바운딩 박스로 먼저 필터링 후 정확한 거리 계산
-    const schools = await prisma.$queryRawUnsafe<
+    const sidoPattern = `${sido}%`;
+    const schools = await prisma.$queryRaw<
       Array<{
         id: string;
         school_nm: string;
@@ -41,28 +43,22 @@ export async function GET(request: NextRequest) {
         address: string | null;
         nearby_count: bigint;
       }>
-    >(
-      `SELECT s.id, s.school_nm, s.school_kind, s.latitude, s.longitude, s.address,
+    >(Prisma.sql`SELECT s.id, s.school_nm, s.school_kind, s.latitude, s.longitude, s.address,
         (SELECT COUNT(*) FROM academies a
-         WHERE a.latitude BETWEEN s.latitude - $2 AND s.latitude + $2
-         AND a.longitude BETWEEN s.longitude - $3 AND s.longitude + $3
+         WHERE a.latitude BETWEEN s.latitude - ${latDelta} AND s.latitude + ${latDelta}
+         AND a.longitude BETWEEN s.longitude - ${lngDelta} AND s.longitude + ${lngDelta}
          AND (6371 * acos(
            LEAST(1.0, GREATEST(-1.0,
              cos(radians(s.latitude)) * cos(radians(a.latitude)) * cos(radians(a.longitude) - radians(s.longitude))
              + sin(radians(s.latitude)) * sin(radians(a.latitude))
            ))
-         )) <= $4
+         )) <= ${radius}
         ) as nearby_count
       FROM schools s
       WHERE s.latitude IS NOT NULL
       AND s.longitude IS NOT NULL
-      AND s.address LIKE $1
-      ORDER BY s.school_nm`,
-      `${sido}%`,
-      latDelta,
-      lngDelta,
-      radius
-    );
+      AND s.address LIKE ${sidoPattern}
+      ORDER BY s.school_nm`);
 
     // 결과 변환
     const result = schools.map((s) => {

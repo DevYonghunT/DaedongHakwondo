@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAnthropicClient } from '@/lib/anthropic';
+import { rateLimit } from '@/lib/rateLimit';
 
 /**
  * POST /api/recommend
@@ -14,6 +15,11 @@ import { getAnthropicClient } from '@/lib/anthropic';
  */
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for') || 'anonymous';
+    if (!rateLimit(`recommend:${ip}`, 5, 60000)) {
+      return NextResponse.json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const { schoolId, budget, interests, radius } = body;
 
@@ -36,7 +42,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const radiusKm = typeof radius === 'number' && radius > 0 ? radius : 2;
+    const radiusKm = Math.min(typeof radius === 'number' && radius > 0 ? radius : 2, 5);
 
     // 1. 학교 정보 조회
     const school = await prisma.school.findUnique({

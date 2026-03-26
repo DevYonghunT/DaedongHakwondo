@@ -155,6 +155,7 @@ export default function SchoolSearch({ onSchoolSelect }: SchoolSearchProps) {
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setIsOpen(true)}
           placeholder="학교 이름으로 검색..."
+          aria-label="학교 검색"
           className="w-full h-10 pl-10 pr-10 text-sm bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
         />
         {/* 검색 아이콘 */}
@@ -198,11 +199,14 @@ export default function SchoolSearch({ onSchoolSelect }: SchoolSearchProps) {
       {isOpen && results.length > 0 && (
         <div
           ref={dropdownRef}
+          role="listbox"
           className="absolute top-full mt-1 w-full bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50 max-h-80 overflow-y-auto"
         >
           {results.map((school, index) => (
             <button
               key={school.id}
+              role="option"
+              aria-selected={index === selectedIndex}
               onClick={() => handleSelect(school)}
               className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-b-0 ${
                 index === selectedIndex ? 'bg-blue-50' : ''
