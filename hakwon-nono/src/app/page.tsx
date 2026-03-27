@@ -2,6 +2,11 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  BookOpen, Menu, X, Sparkles, Loader2,
+  BarChart3, GitCompare, Coins, Accessibility, Lightbulb,
+} from 'lucide-react';
 import MapView, { type MapBounds, type MapMarkerData } from '@/components/MapView';
 import FilterPanel, { type ViewMode } from '@/components/FilterPanel';
 import RegionStats, { type RegionStatsData } from '@/components/RegionStats';
@@ -20,6 +25,7 @@ export default function Home() {
   const [regionStats, setRegionStats] = useState<RegionStatsData | null>(null);
   const [selectedSchool, setSelectedSchool] = useState<SchoolResult | null>(null);
   const [schoolRadius, setSchoolRadius] = useState(2);
+  const [, setIsLoadingAcademies] = useState(false);
   const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedAcademyId, setSelectedAcademyId] = useState<string | null>(null);
@@ -40,7 +46,7 @@ export default function Home() {
 
   const fetchAcademies = useCallback(
     async (bounds: MapBounds, realmsOverride?: string[]) => {
-
+      setIsLoadingAcademies(true);
       if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
       loadingTimerRef.current = setTimeout(() => setShowLoadingIndicator(true), 300);
 
@@ -50,7 +56,7 @@ export default function Home() {
         if (realms.length === 0) {
           setMarkers([]);
           setRegionStats({ total: 0, breakdown: [] });
-
+          setIsLoadingAcademies(false);
           return;
         }
 
@@ -80,29 +86,24 @@ export default function Home() {
 
         setMarkers(newMarkers);
 
-        // 정확한 통계는 API에서 제공 (LIMIT 없이 집계된 값)
-        if (data.stats) {
-          setRegionStats(data.stats);
-        } else {
-          // fallback: API가 stats를 반환하지 않는 경우 마커 기반 계산
-          const realmCounts: Record<string, number> = {};
-          newMarkers.forEach((m: MapMarkerData) => {
-            const realm = m.realm || '기타';
-            realmCounts[realm] = (realmCounts[realm] || 0) + 1;
-          });
+        const realmCounts: Record<string, number> = {};
+        newMarkers.forEach((m: MapMarkerData) => {
+          const realm = m.realm || '기타';
+          realmCounts[realm] = (realmCounts[realm] || 0) + 1;
+        });
 
-          const total = newMarkers.length;
-          const breakdown = Object.entries(realmCounts).map(([realm, count]) => ({
-            realm,
-            count,
-            ratio: total > 0 ? count / total : 0,
-          }));
+        const total = newMarkers.length;
+        const breakdown = Object.entries(realmCounts).map(([realm, count]) => ({
+          realm,
+          count,
+          ratio: total > 0 ? count / total : 0,
+        }));
 
-          setRegionStats({ total, breakdown });
-        }
+        setRegionStats({ total, breakdown });
       } catch (err) {
         console.error('학원 데이터 조회 오류:', err);
       } finally {
+        setIsLoadingAcademies(false);
         if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
         setShowLoadingIndicator(false);
       }
@@ -161,17 +162,16 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-white">
       {/* ── 헤더 (Airbnb 스타일) ── */}
-      <header className="flex-shrink-0 bg-white border-b border-gray-100 z-[1100]">
+      {/* 시맨틱 디자인 토큰 적용된 헤더 */}
+      <header className="flex-shrink-0 bg-white border-b border-secondary-100 z-[1100]">
         {/* 상단 네비게이션 */}
         <div className="h-16 px-6 flex items-center gap-4">
           {/* 로고 */}
           <Link href="/" className="flex items-center gap-2.5 flex-shrink-0 mr-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-sm">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-gray-900 hidden sm:inline tracking-tight">
+            <span className="text-lg font-bold text-secondary-900 hidden sm:inline tracking-tight">
               대동학원도
             </span>
           </Link>
@@ -182,19 +182,21 @@ export default function Home() {
           </div>
 
           {/* 네비게이션 링크 */}
-          <nav aria-label="메인 네비게이션" className="hidden lg:flex items-center gap-1 ml-auto">
+          {/* 데스크톱 네비게이션 (아이콘 포함) */}
+          <nav className="hidden lg:flex items-center gap-1 ml-auto">
             {[
-              { href: '/dashboard', label: '전국 현황' },
-              { href: '/compare', label: '지역 비교' },
-              { href: '/tuition', label: '수강료' },
-              { href: '/equity', label: '접근성' },
-              { href: '/insights', label: '인사이트' },
+              { href: '/dashboard', label: '전국 현황', icon: BarChart3 },
+              { href: '/compare', label: '지역 비교', icon: GitCompare },
+              { href: '/tuition', label: '수강료', icon: Coins },
+              { href: '/equity', label: '접근성', icon: Accessibility },
+              { href: '/insights', label: '인사이트', icon: Lightbulb },
             ].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-3.5 py-2 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-full transition-all font-medium"
+                className="px-3.5 py-2 text-sm text-secondary-500 hover:text-secondary-900 hover:bg-secondary-50 rounded-full transition-all font-medium flex items-center gap-1.5"
               >
+                <link.icon className="w-3.5 h-3.5" />
                 {link.label}
               </Link>
             ))}
@@ -203,36 +205,47 @@ export default function Home() {
           {/* 모바일 메뉴 버튼 */}
           <button
             onClick={() => setMobileNavOpen(!mobileNavOpen)}
-            aria-label={mobileNavOpen ? '메뉴 닫기' : '메뉴 열기'}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="lg:hidden p-2 hover:bg-secondary-50 rounded-full transition-colors"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={mobileNavOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-            </svg>
+            {mobileNavOpen ? (
+              <X className="w-5 h-5 text-secondary-600" />
+            ) : (
+              <Menu className="w-5 h-5 text-secondary-600" />
+            )}
           </button>
         </div>
 
-        {/* 모바일 네비게이션 드롭다운 */}
-        {mobileNavOpen && (
-          <div className="lg:hidden border-t border-gray-100 px-4 py-2 bg-white animate-fade-in">
-            {[
-              { href: '/dashboard', label: '전국 현황' },
-              { href: '/compare', label: '지역 비교' },
-              { href: '/tuition', label: '수강료 현황' },
-              { href: '/equity', label: '접근성 분석' },
-              { href: '/insights', label: '데이터 인사이트' },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="block px-3 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        )}
+        {/* 모바일 네비게이션 드롭다운 (Framer Motion 애니메이션) */}
+        <AnimatePresence>
+          {mobileNavOpen && (
+            <motion.div
+              initial={{ opacity: 0, scaleY: 0 }}
+              animate={{ opacity: 1, scaleY: 1 }}
+              exit={{ opacity: 0, scaleY: 0 }}
+              transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              style={{ transformOrigin: 'top' }}
+              className="lg:hidden border-t border-secondary-100 px-4 py-2 bg-white overflow-hidden"
+            >
+              {[
+                { href: '/dashboard', label: '전국 현황', icon: BarChart3 },
+                { href: '/compare', label: '지역 비교', icon: GitCompare },
+                { href: '/tuition', label: '수강료 현황', icon: Coins },
+                { href: '/equity', label: '접근성 분석', icon: Accessibility },
+                { href: '/insights', label: '데이터 인사이트', icon: Lightbulb },
+              ].map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50 rounded-lg"
+                  onClick={() => setMobileNavOpen(false)}
+                >
+                  <link.icon className="w-4 h-4" />
+                  {link.label}
+                </Link>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 필터 바 (가로 나열) */}
         <FilterPanel
@@ -269,31 +282,39 @@ export default function Home() {
             }}
           />
 
-          {/* 로딩 인디케이터 */}
-          {showLoadingIndicator && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1100]">
-              <div className="bg-white px-5 py-2.5 rounded-full shadow-lg border border-gray-100 flex items-center gap-2.5">
-                <div className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm text-gray-600 font-medium">데이터 로딩 중...</span>
-              </div>
-            </div>
-          )}
+          {/* 로딩 인디케이터 (Framer Motion 페이드 애니메이션) */}
+          <AnimatePresence>
+            {showLoadingIndicator && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="absolute top-4 left-1/2 -translate-x-1/2 z-[1100]"
+              >
+                <div className="bg-white px-5 py-2.5 rounded-full shadow-lg border border-secondary-100 flex items-center gap-2.5">
+                  <Loader2 className="w-4 h-4 text-primary-500 animate-spin" />
+                  <span className="text-sm text-secondary-600 font-medium">데이터 로딩 중...</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 지역 통계 (하단 중앙) */}
           <RegionStats stats={regionStats} />
 
           {/* 히트맵 범례 */}
           {viewMode === 'heatmap' && (
-            <div className="absolute bottom-6 left-6 z-[1000] bg-white rounded-2xl shadow-lg border border-gray-100 px-5 py-3.5">
-              <p className="text-xs font-semibold text-gray-500 mb-2 tracking-wide">학원 밀집도</p>
+            <div className="absolute bottom-6 left-6 z-[1000] bg-white rounded-2xl shadow-lg border border-secondary-100 px-5 py-3.5">
+              <p className="text-xs font-semibold text-secondary-500 mb-2 tracking-wide">학원 밀집도</p>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-gray-400 font-medium">낮음</span>
+                <span className="text-[10px] text-secondary-400 font-medium">낮음</span>
                 <div className="flex rounded-full overflow-hidden h-2.5">
                   {['#60A5FA', '#A78BFA', '#F472B6', '#FBBF24', '#F87171'].map((color) => (
                     <div key={color} className="w-7 h-2.5" style={{ backgroundColor: color }} />
                   ))}
                 </div>
-                <span className="text-[10px] text-gray-400 font-medium">높음</span>
+                <span className="text-[10px] text-secondary-400 font-medium">높음</span>
               </div>
             </div>
           )}
@@ -306,11 +327,9 @@ export default function Home() {
                 setSelectedAcademyId(null);
                 setShowSchoolDetail(false);
               }}
-              className="absolute bottom-6 right-6 z-[1000] bg-gray-900 hover:bg-gray-800 text-white pl-4 pr-5 py-3 rounded-full shadow-xl hover:shadow-2xl transition-all flex items-center gap-2 text-sm font-semibold group"
+              className="absolute bottom-6 right-6 z-[1000] bg-secondary-900 hover:bg-secondary-800 text-white pl-4 pr-5 py-3 rounded-full shadow-xl hover:shadow-2xl transition-all flex items-center gap-2 text-sm font-semibold group"
             >
-              <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
+              <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
               AI 추천
             </button>
           )}
@@ -318,16 +337,13 @@ export default function Home() {
 
         {/* ── 사이드 패널 (슬라이드 인) ── */}
         {hasSidePanel && (
-          <div className="w-[420px] flex-shrink-0 border-l border-gray-100 bg-white relative z-[1050] animate-slide-in-right overflow-hidden hidden md:block">
+          <div className="w-[420px] flex-shrink-0 border-l border-secondary-100 bg-white relative z-[1050] animate-slide-in-right overflow-hidden hidden md:block">
             {/* 닫기 버튼 */}
             <button
               onClick={closeAllPanels}
-              aria-label="패널 닫기"
-              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white hover:bg-gray-100 shadow-sm border border-gray-200 transition-colors"
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white hover:bg-secondary-50 shadow-sm border border-secondary-200 transition-colors"
             >
-              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-4 h-4 text-secondary-500" />
             </button>
 
             <div className="h-full overflow-y-auto">
@@ -388,16 +404,13 @@ export default function Home() {
             <div className="flex-1 bg-black/30" onClick={closeAllPanels} />
             {/* 패널 (하단에서 올라옴) */}
             <div className="h-[75vh] bg-white rounded-t-3xl shadow-2xl overflow-y-auto animate-slide-up">
-              <div className="sticky top-0 bg-white pt-3 pb-2 px-4 border-b border-gray-100 z-10">
-                <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-2" />
+              <div className="sticky top-0 bg-white pt-3 pb-2 px-4 border-b border-secondary-100 z-10">
+                <div className="w-10 h-1 bg-secondary-300 rounded-full mx-auto mb-2" />
                 <button
                   onClick={closeAllPanels}
-                  aria-label="패널 닫기"
-                  className="absolute top-3 right-4 p-1.5 hover:bg-gray-100 rounded-full"
+                  className="absolute top-3 right-4 p-1.5 hover:bg-secondary-50 rounded-full"
                 >
-                  <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="w-5 h-5 text-secondary-400" />
                 </button>
               </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { REALM_LABELS, REALM_COLORS, ALL_REALMS } from '@/lib/constants';
+import { getRealmColor, getRealmLabel, ALL_REALMS } from '@/lib/constants';
 
 /** 추천 학원 정보 */
 interface RecommendedAcademy {
@@ -235,7 +235,7 @@ export default function RecommendPanel({ school, onClose, embedded }: RecommendP
             <div className="flex flex-wrap gap-2">
               {ALL_REALMS.map((realm) => {
                 const isSelected = selectedInterests.includes(realm);
-                const color = REALM_COLORS[realm] || '#6B7280';
+                const color = getRealmColor(realm);
                 return (
                   <button
                     key={realm}
@@ -251,7 +251,7 @@ export default function RecommendPanel({ school, onClose, embedded }: RecommendP
                         : undefined
                     }
                   >
-                    {REALM_LABELS[realm] || realm}
+                    {getRealmLabel(realm)}
                   </button>
                 );
               })}
@@ -369,8 +369,7 @@ export default function RecommendPanel({ school, onClose, embedded }: RecommendP
               </h4>
               <div className="space-y-2">
                 {result.academies.map((academy) => {
-                  const realmColor =
-                    REALM_COLORS[academy.realm || ''] || '#6B7280';
+                  const realmColor = getRealmColor(academy.realm || '');
                   return (
                     <div
                       key={academy.id}
@@ -387,7 +386,7 @@ export default function RecommendPanel({ school, onClose, embedded }: RecommendP
                                 className="text-xs px-2 py-0.5 rounded-full text-white font-medium"
                                 style={{ backgroundColor: realmColor }}
                               >
-                                {REALM_LABELS[academy.realm] || academy.realm}
+                                {getRealmLabel(academy.realm)}
                               </span>
                             )}
                             {academy.subject && (

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getRealmGroup } from '@/lib/constants';
 
 /**
  * GET /api/districts/compare
@@ -78,7 +79,7 @@ async function getDistrictStats(sido: string, sigungu: string) {
   let totalCapacity = 0;
 
   districtData.forEach((d) => {
-    const realm = d.realm || '기타';
+    const realm = getRealmGroup(d.realm || '기타');
     if (!realmMap[realm]) {
       realmMap[realm] = { count: 0, tuition: 0, tuitionEntries: 0 };
     }

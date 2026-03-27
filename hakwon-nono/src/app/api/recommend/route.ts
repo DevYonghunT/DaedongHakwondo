@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAnthropicClient } from '@/lib/anthropic';
-import { rateLimit } from '@/lib/rateLimit';
+import { getDbRealmsForGroup } from '@/lib/constants';
 
 /**
  * POST /api/recommend
@@ -15,11 +15,6 @@ import { rateLimit } from '@/lib/rateLimit';
  */
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'anonymous';
-    if (!rateLimit(`recommend:${ip}`, 5, 60000)) {
-      return NextResponse.json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }, { status: 429 });
-    }
-
     const body = await request.json();
     const { schoolId, budget, interests, radius } = body;
 
@@ -77,7 +72,7 @@ export async function POST(request: NextRequest) {
           gte: school.longitude - lngDelta,
           lte: school.longitude + lngDelta,
         },
-        realmScNm: { in: interests },
+        realmScNm: { in: interests.flatMap((group) => getDbRealmsForGroup(group)) },
         NOT: [{ latitude: null }, { longitude: null }],
       },
       select: {
@@ -143,23 +138,37 @@ export async function POST(request: NextRequest) {
       )
       .join('\n');
 
-    const prompt = `당신은 학부모를 위한 사교육 상담 전문가입니다.
+    const prompt = `당신은 교육 공공데이터 기반 사교육 분석 전문가입니다.
+교육부와 지방자치단체의 교육정책 수립을 지원하는 관점에서 분석해주세요.
 
-다음 조건에 맞는 최적의 학원 조합을 추천해주세요:
-
-- 학교: ${school.schoolNm} (${school.schoolKind || '학교'})
+## 분석 대상
+- 학교: ${school.schoolNm} (${school.schoolKind || '학교'}, ${school.address || ''})
 - 월 예산: ${budget}만원
 - 관심 분야: ${interests.join(', ')}
 - 검색 반경: ${radiusKm}km
 
-주변 학원 목록 (총 ${nearbyAcademies.length}개):
+## 주변 학원 현황 (총 ${nearbyAcademies.length}개)
 ${academyList}
 
-다음 형식으로 추천해주세요:
-1. **추천 조합** (예산 내 최적 2~4개 학원)
-2. **추천 이유** (각 학원 선택 근거)
-3. **월 예상 비용** (총액)
-4. **추가 조언** (학년별 고려사항 등)`;
+## 다음 형식으로 분석 및 추천해주세요:
+
+### 1. 지역 사교육 현황 분석
+- 이 학교 주변의 사교육 인프라 특징 (분야별 분포, 수강료 수준)
+- 전체적인 사교육 접근성 평가
+
+### 2. 예산 내 추천 학원 조합 (2~4개)
+- 각 학원명, 분야, 예상 수강료, 거리
+- 선택 근거 (교육적 효과, 접근성, 가성비)
+
+### 3. 사교육비 절감 방안
+- 월 예상 총 비용
+- 방과후 학교 프로그램으로 대체 가능한 분야
+- 무료/저가 공공 교육 프로그램 활용 제안 (도서관, 청소년센터, EBS 등)
+
+### 4. 교육 형평성 관점 조언
+- 이 지역에서 부족한 교육 분야와 보완 방법
+- 학교급(초/중/고)별 고려사항
+- 공교육-사교육 균형 잡힌 학습 설계 제안`;
 
     const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({

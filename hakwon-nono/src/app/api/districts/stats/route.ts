@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getRealmGroup } from '@/lib/constants';
 
 /**
  * GET /api/districts/stats
@@ -94,12 +95,17 @@ async function getNationalStats() {
       count: item._sum.academyCount || 0,
     }));
 
-  const byRealm = byRealmRaw
+  // 분야를 그룹 기준으로 통합 (예능(대)+기예(대)→예체능)
+  const realmGrouped: Record<string, number> = {};
+  byRealmRaw
     .filter((item) => item.realm)
-    .map((item) => ({
-      realm: item.realm!,
-      count: item._sum.academyCount || 0,
-    }));
+    .forEach((item) => {
+      const group = getRealmGroup(item.realm!);
+      realmGrouped[group] = (realmGrouped[group] || 0) + (item._sum.academyCount || 0);
+    });
+  const byRealm = Object.entries(realmGrouped)
+    .map(([realm, count]) => ({ realm, count }))
+    .sort((a, b) => b.count - a.count);
 
   const topDense = topDenseRaw
     .filter((item) => item.sido && item.sigungu)

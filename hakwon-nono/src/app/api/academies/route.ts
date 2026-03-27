@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
+import { getDbRealmsForGroup } from '@/lib/constants';
 
 /**
  * GET /api/academies
@@ -56,9 +57,12 @@ export async function GET(request: NextRequest) {
       ],
     };
 
-    // 분야 필터 적용
+    // 분야 필터 적용 (그룹명 → DB 원본명으로 변환)
     if (realmFilter && realmFilter.length > 0) {
-      where.realmScNm = { in: realmFilter };
+      const dbRealms = realmFilter.flatMap((group) => getDbRealmsForGroup(group));
+      if (dbRealms.length > 0) {
+        where.realmScNm = { in: dbRealms };
+      }
     }
 
     // 학원 조회 (마커용, LIMIT 적용)

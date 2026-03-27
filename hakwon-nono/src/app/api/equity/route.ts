@@ -25,10 +25,10 @@ export async function GET(request: NextRequest) {
     const sido = searchParams.get('sido') || '서울특별시';
     const radius = Math.min(Math.max(parseFloat(searchParams.get('radius') || '1'), 0.5), 5);
 
-    // 위도 1도 ≈ 111km, 경도 1도 ≈ 88km (한국 위도 기준)
+    // 위도 1도 ≈ 111km, 경도 1도 ≈ 88.8km (한국 위도 기준)
     // 바운딩 박스 필터용 대략적 변환값 (radius에 비례)
     const latDelta = radius / 111 * 1.2; // 20% 여유
-    const lngDelta = radius / 88 * 1.2;
+    const lngDelta = radius / 88.8 * 1.2;
 
     // Haversine 공식으로 반경 내 학원 수 계산
     // 바운딩 박스로 먼저 필터링 후 정확한 거리 계산

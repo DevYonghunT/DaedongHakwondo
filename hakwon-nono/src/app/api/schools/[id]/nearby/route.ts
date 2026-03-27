@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getRealmGroup } from '@/lib/constants';
 
 /**
  * GET /api/schools/[id]/nearby
@@ -29,6 +30,7 @@ export async function GET(
         latitude: true,
         longitude: true,
         atptOfcdcScCode: true,
+        address: true,
       },
     });
 
@@ -46,9 +48,9 @@ export async function GET(
       );
     }
 
-    // 위도 1도 ≈ 111km, 경도 1도 ≈ 88.8km (한국 기준)
-    const latDelta = radiusKm / 111;
-    const lngDelta = radiusKm / 88.8;
+    // 위도 1도 ≈ 111km, 경도 1도 ≈ 88.8km (한국 기준), 바운딩박스 20% 여유
+    const latDelta = radiusKm / 111 * 1.2;
+    const lngDelta = radiusKm / 88.8 * 1.2;
 
     const swLat = school.latitude - latDelta;
     const neLat = school.latitude + latDelta;
@@ -87,14 +89,14 @@ export async function GET(
       .filter((a) => a.distance <= radiusKm)
       .sort((a, b) => a.distance - b.distance);
 
-    // 분야별 통계 계산
+    // 분야별 통계 계산 (새 분류 그룹 기준으로 통합)
     const realmCounts: Record<string, number> = {};
     let totalTuition = 0;
     let tuitionCount = 0;
 
     academiesWithDistance.forEach((academy) => {
-      const realm = academy.realmScNm || '기타';
-      realmCounts[realm] = (realmCounts[realm] || 0) + 1;
+      const group = getRealmGroup(academy.realmScNm || '기타');
+      realmCounts[group] = (realmCounts[group] || 0) + 1;
 
       if (academy.tuitionFee && academy.tuitionFee > 0) {
         totalTuition += academy.tuitionFee;
@@ -104,36 +106,59 @@ export async function GET(
 
     const total = academiesWithDistance.length;
 
-    // 시도 평균 비율 조회 (해당 교육청 기준)
-    const sidoStats = await prisma.districtStats.groupBy({
-      by: ['realm'],
-      where: {
-        sido: { not: '' },
-      },
-      _sum: {
-        academyCount: true,
-      },
-    });
+    // 학교 주소에서 시/도 추출
+    const schoolSido = school.address?.split(' ')[0] || '';
 
-    const sidoTotal = sidoStats.reduce((sum, s) => sum + (s._sum.academyCount || 0), 0);
-    const sidoRatios: Record<string, number> = {};
-    sidoStats.forEach((s) => {
+    // 해당 시/도의 분야별 학원 총 수 + 학교 총 수를 구해서 "학교당 평균 학원 개수" 계산
+    const [sidoRealmStats, sidoSchoolCount] = await Promise.all([
+      // 시/도 분야별 학원 총 수 (DB 원본 분류)
+      prisma.districtStats.groupBy({
+        by: ['realm'],
+        where: schoolSido
+          ? { sido: schoolSido }
+          : { sido: { not: '' } },
+        _sum: { academyCount: true },
+      }),
+      // 시/도 학교 수
+      prisma.school.count({
+        where: schoolSido
+          ? { address: { startsWith: schoolSido }, latitude: { not: null } }
+          : { latitude: { not: null } },
+      }),
+    ]);
+
+    // 시/도 평균을 새 분류 그룹 기준으로 통합
+    const sidoGroupTotals: Record<string, number> = {};
+    sidoRealmStats.forEach((s) => {
       if (s.realm) {
-        sidoRatios[s.realm] = sidoTotal > 0 ? (s._sum.academyCount || 0) / sidoTotal : 0;
+        const group = getRealmGroup(s.realm);
+        sidoGroupTotals[group] = (sidoGroupTotals[group] || 0) + (s._sum.academyCount || 0);
       }
     });
 
-    // 분야별 비율 계산
-    const byRealm = Object.entries(realmCounts).map(([realm, count]) => ({
-      realm,
-      count,
-      ratio: total > 0 ? count / total : 0,
-      avgRatio: sidoRatios[realm] || 0,
+    // 그룹별 "학교당 평균 학원 개수" 계산
+    const sidoAvgCounts: Record<string, number> = {};
+    Object.entries(sidoGroupTotals).forEach(([group, total]) => {
+      if (sidoSchoolCount > 0) {
+        sidoAvgCounts[group] = total / sidoSchoolCount;
+      }
+    });
+
+    // 분야별 개수 비교 (그룹 기준, 절대 개수)
+    const allGroups = new Set([...Object.keys(realmCounts), ...Object.keys(sidoAvgCounts)]);
+    const byRealm = Array.from(allGroups).map((group) => ({
+      realm: group,
+      count: realmCounts[group] || 0,
+      avgCount: Math.round((sidoAvgCounts[group] || 0) * 10) / 10,
+      ratio: total > 0 ? (realmCounts[group] || 0) / total : 0,
+      avgRatio: 0,
     }));
 
     // 응답 데이터
     return NextResponse.json({
       total,
+      sido: schoolSido,
+      sidoSchoolCount,
       byRealm,
       avgTuition: tuitionCount > 0 ? Math.round(totalTuition / tuitionCount) : null,
       academies: academiesWithDistance.slice(0, 100).map((a) => ({

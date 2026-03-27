@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 /** AI 리포트 데이터 구조 */
 interface ReportData {
@@ -66,10 +66,13 @@ export default function AIReport({ regionKey, autoLoad = false }: AIReportProps)
     }
   }, [regionKey]);
 
-  // 자동 로드
-  if (autoLoad && !isLoaded && !isLoading && !error) {
-    generateReport();
-  }
+  // 자동 로드 (useEffect로 side effect 처리)
+  useEffect(() => {
+    if (autoLoad && !isLoaded && !isLoading && !error) {
+      generateReport();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLoad, isLoaded, isLoading, error]);
 
   // 로딩 스켈레톤
   if (isLoading) {

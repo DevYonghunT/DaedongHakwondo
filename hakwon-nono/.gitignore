@@ -27,6 +27,9 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
+setup/env.*
+setup/*.backup
 
 # data files (수집 데이터)
 /data/

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { DEFAULT_CENTER, DEFAULT_ZOOM_LEVEL, REALM_COLORS } from '@/lib/constants';
+import { DEFAULT_CENTER, DEFAULT_ZOOM_LEVEL, getRealmColor } from '@/lib/constants';
 
 /** 지도 바운드 좌표 */
 export interface MapBounds {
@@ -32,16 +32,6 @@ interface MapViewProps {
 
 // Leaflet 줌 레벨 변환 (카카오 레벨 8 → Leaflet 약 7)
 const kakaoToLeafletZoom = (kakaoLevel: number) => Math.max(1, 14 - kakaoLevel);
-
-// XSS 방지를 위한 HTML 이스케이프 헬퍼
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
 
 export default function MapView({
   onMapReady,
@@ -251,7 +241,8 @@ export default function MapView({
 
     // 새 마커 생성
     markers.forEach((markerData) => {
-      const color = markerData.realm ? (REALM_COLORS[markerData.realm] || '#6B7280') : '#3B82F6';
+      // 분야별 색상 조회 (DB 원본명도 그룹 색상으로 자동 변환)
+      const color = markerData.realm ? getRealmColor(markerData.realm) : '#3B82F6';
       const size = markerData.type === 'school' ? 28 : 20;
 
       // SVG 아이콘
@@ -268,11 +259,15 @@ export default function MapView({
 
       const marker = L.marker([markerData.lat, markerData.lng], { icon });
 
-      // 팝업
+      // 팝업 (XSS 방지: 텍스트 이스케이프)
+      const escapeHtml = (str: string) =>
+        str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const safeName = escapeHtml(markerData.name || '');
+      const safeRealm = markerData.realm ? escapeHtml(markerData.realm) : '';
       const popupContent = `
         <div style="padding:4px 8px;font-size:13px;min-width:150px;line-height:1.5;">
-          <strong style="font-size:14px;">${escapeHtml(markerData.name)}</strong>
-          ${markerData.realm ? `<br/><span style="color:${color};font-size:12px;">${escapeHtml(markerData.realm)}</span>` : ''}
+          <strong style="font-size:14px;">${safeName}</strong>
+          ${safeRealm ? `<br/><span style="color:${color};font-size:12px;">${safeRealm}</span>` : ''}
         </div>
       `;
       marker.bindPopup(popupContent);

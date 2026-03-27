@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getRealmGroup } from '@/lib/constants';
 
 /**
  * GET /api/schools/[id]/detail
@@ -300,29 +301,53 @@ async function fetchNearbyAcademies(
   }
 
   const radiusKm = 1;
-  const latDelta = radiusKm / 111;
-  const lngDelta = radiusKm / 88.8;
+  const latDelta = radiusKm / 111 * 1.2; // 바운딩 박스 20% 여유 (equity API와 동일)
+  const lngDelta = radiusKm / 88 * 1.2;
 
-  const result = await prisma.academy.groupBy({
-    by: ['realmScNm'],
+  // 바운딩 박스로 1차 필터 후 Haversine으로 정확한 원형 필터링 (equity API와 동일 방식)
+  const academies = await prisma.academy.findMany({
     where: {
       latitude: { gte: latitude - latDelta, lte: latitude + latDelta },
       longitude: { gte: longitude - lngDelta, lte: longitude + lngDelta },
       NOT: [{ latitude: null }, { longitude: null }],
     },
-    _count: { id: true },
+    select: {
+      realmScNm: true,
+      latitude: true,
+      longitude: true,
+    },
   });
 
-  const byRealm = result
-    .map((r) => ({
-      realm: r.realmScNm || '기타',
-      count: r._count.id,
-    }))
+  // Haversine 거리 계산으로 정확한 원형 필터링
+  const filtered = academies.filter((a) => {
+    const dLat = toRad(a.latitude! - latitude);
+    const dLng = toRad(a.longitude! - longitude);
+    const sinLat = Math.sin(dLat / 2);
+    const sinLng = Math.sin(dLng / 2);
+    const h = sinLat * sinLat + Math.cos(toRad(latitude)) * Math.cos(toRad(a.latitude!)) * sinLng * sinLng;
+    const distance = 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    return distance <= radiusKm;
+  });
+
+  // 분야별 집계 (새 분류 그룹 기준으로 통합)
+  const realmCounts: Record<string, number> = {};
+  filtered.forEach((a) => {
+    const group = getRealmGroup(a.realmScNm || '기타');
+    realmCounts[group] = (realmCounts[group] || 0) + 1;
+  });
+
+  const byRealm = Object.entries(realmCounts)
+    .map(([realm, count]) => ({ realm, count }))
     .sort((a, b) => b.count - a.count);
 
-  const total = byRealm.reduce((sum, r) => sum + r.count, 0);
+  const total = filtered.length;
 
   return { total, byRealm };
+}
+
+/** 각도를 라디안으로 변환 */
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
 }
 
 /**

@@ -1,7 +1,8 @@
 'use client';
 
+import { memo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { REALM_COLORS, REALM_LABELS } from '@/lib/constants';
+import { getRealmColor, getRealmLabel } from '@/lib/constants';
 
 /** 파이차트 데이터 항목 */
 interface RealmPieData {
@@ -32,7 +33,7 @@ const CustomTooltip = ({
   if (!active || !payload || payload.length === 0) return null;
 
   const item = payload[0];
-  const color = REALM_COLORS[item.name] || '#6B7280';
+  const color = getRealmColor(item.name);
 
   return (
     <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-gray-200">
@@ -42,7 +43,7 @@ const CustomTooltip = ({
           style={{ backgroundColor: color }}
         />
         <span className="text-sm font-medium text-gray-800">
-          {REALM_LABELS[item.name] || item.name}
+          {getRealmLabel(item.name)}
         </span>
       </div>
       <p className="text-sm text-gray-600 mt-1">
@@ -72,7 +73,7 @@ const CustomLegend = ({
             style={{ backgroundColor: entry.color }}
           />
           <span className="text-xs text-gray-600">
-            {REALM_LABELS[entry.value] || entry.value}
+            {getRealmLabel(entry.value)}
           </span>
         </div>
       ))}
@@ -80,7 +81,8 @@ const CustomLegend = ({
   );
 };
 
-export default function RealmPieChart({
+/** 분야별 파이 차트 컴포넌트 */
+function RealmPieChart({
   data,
   height = 280,
   showLegend = true,
@@ -123,7 +125,7 @@ export default function RealmPieChart({
           {chartData.map((entry) => (
             <Cell
               key={entry.realm}
-              fill={REALM_COLORS[entry.realm] || '#6B7280'}
+              fill={getRealmColor(entry.realm)}
             />
           ))}
         </Pie>
@@ -151,3 +153,6 @@ export default function RealmPieChart({
     </ResponsiveContainer>
   );
 }
+
+/** 불필요한 리렌더링 방지를 위한 메모이제이션 */
+export default memo(RealmPieChart);

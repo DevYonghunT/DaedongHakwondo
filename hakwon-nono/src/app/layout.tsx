@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import ToastProvider from '@/components/ui/Toast';
 
 export const metadata: Metadata = {
   title: '대동학원도 - 우리 동네 학원을 한눈에',
@@ -41,6 +42,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased flex flex-col min-h-screen">
         {children}
+        <ToastProvider />
       </body>
     </html>
   );

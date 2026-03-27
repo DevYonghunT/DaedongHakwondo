@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { REALM_COLORS } from '@/lib/constants';
+import { getRealmColor } from '@/lib/constants';
 
 /** 학원 상세 데이터 */
 export interface AcademyDetailData {
@@ -73,8 +73,9 @@ export default function AcademyDetail({ academyId, onClose, embedded }: AcademyD
     fetchDetail();
   }, [academyId]);
 
+  // 분야별 색상 조회 (DB 원본명 → 그룹 색상 자동 변환)
   const realmColor = academy?.realmScNm
-    ? REALM_COLORS[academy.realmScNm] || '#6B7280'
+    ? getRealmColor(academy.realmScNm)
     : '#6B7280';
 
   return (

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { REALM_COLORS, ALL_REALMS, REALM_LABELS } from '@/lib/constants';
+import { useState, useRef, useEffect, memo } from 'react';
+import { getRealmColor, getRealmLabel, ALL_REALMS } from '@/lib/constants';
+import { Filter, Check } from 'lucide-react';
 
 /** 뷰 모드 타입 */
 export type ViewMode = 'marker' | 'heatmap';
@@ -13,7 +14,8 @@ interface FilterPanelProps {
   onViewModeChange: (mode: ViewMode) => void;
 }
 
-export default function FilterPanel({
+/** 필터 패널 — 뷰 모드 토글 및 분야 필터 */
+function FilterPanel({
   selectedRealms,
   onRealmsChange,
   viewMode,
@@ -93,9 +95,7 @@ export default function FilterPanel({
               : 'border-gray-300 bg-white text-gray-700 hover:border-gray-900 hover:shadow-sm'
           }`}
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
+          <Filter className="w-3.5 h-3.5" />
           분야
           {filterCount > 0 && (
             <span className="w-4 h-4 rounded-full bg-white text-gray-900 text-[10px] flex items-center justify-center font-bold">
@@ -118,9 +118,7 @@ export default function FilterPanel({
                   isAllSelected ? 'bg-gray-900 border-gray-900' : 'border-gray-300'
                 }`}>
                   {isAllSelected && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
+                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
                   )}
                 </div>
               </button>
@@ -130,7 +128,7 @@ export default function FilterPanel({
             <div className="p-2 max-h-72 overflow-y-auto">
               {ALL_REALMS.map((realm) => {
                 const isChecked = selectedRealms.includes(realm);
-                const color = REALM_COLORS[realm];
+                const color = getRealmColor(realm);
 
                 return (
                   <button
@@ -143,7 +141,7 @@ export default function FilterPanel({
                       style={{ backgroundColor: color }}
                     />
                     <span className="text-sm text-gray-700 flex-1 text-left">
-                      {REALM_LABELS[realm] || realm}
+                      {getRealmLabel(realm)}
                     </span>
                     <div
                       className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors`}
@@ -153,9 +151,7 @@ export default function FilterPanel({
                       }}
                     >
                       {isChecked && (
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
+                        <Check className="w-3 h-3 text-white" strokeWidth={3} />
                       )}
                     </div>
                   </button>
@@ -169,7 +165,7 @@ export default function FilterPanel({
       {/* 개별 분야 필 (선택된 것들을 가로로 나열) */}
       {ALL_REALMS.map((realm) => {
         const isChecked = selectedRealms.includes(realm);
-        const color = REALM_COLORS[realm];
+        const color = getRealmColor(realm);
 
         return (
           <button
@@ -187,10 +183,13 @@ export default function FilterPanel({
               className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: color, opacity: isChecked ? 1 : 0.3 }}
             />
-            {REALM_LABELS[realm] || realm}
+            {getRealmLabel(realm)}
           </button>
         );
       })}
     </div>
   );
 }
+
+/** 불필요한 리렌더링 방지를 위한 메모이제이션 */
+export default memo(FilterPanel);

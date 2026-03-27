@@ -1,6 +1,7 @@
 'use client';
 
-import { REALM_COLORS, REALM_LABELS } from '@/lib/constants';
+import { memo } from 'react';
+import { getRealmColor, getRealmLabel } from '@/lib/constants';
 
 /** 지역 통계 데이터 */
 export interface RegionStatsData {
@@ -16,7 +17,8 @@ interface RegionStatsProps {
   stats: RegionStatsData | null;
 }
 
-export default function RegionStats({ stats }: RegionStatsProps) {
+/** 지역 통계 표시 컴포넌트 */
+function RegionStats({ stats }: RegionStatsProps) {
   if (!stats || stats.total === 0) return null;
 
   const sorted = [...stats.breakdown]
@@ -52,9 +54,9 @@ export default function RegionStats({ stats }: RegionStatsProps) {
                   className="transition-all duration-300"
                   style={{
                     width: `${item.ratio * 100}%`,
-                    backgroundColor: REALM_COLORS[item.realm] || '#6B7280',
+                    backgroundColor: getRealmColor(item.realm),
                   }}
-                  title={`${REALM_LABELS[item.realm] || item.realm}: ${(item.ratio * 100).toFixed(1)}%`}
+                  title={`${getRealmLabel(item.realm)}: ${(item.ratio * 100).toFixed(1)}%`}
                 />
               ))}
           </div>
@@ -65,10 +67,10 @@ export default function RegionStats({ stats }: RegionStatsProps) {
               <div key={item.realm} className="flex items-center gap-1.5">
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: REALM_COLORS[item.realm] || '#6B7280' }}
+                  style={{ backgroundColor: getRealmColor(item.realm) }}
                 />
                 <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">
-                  {REALM_LABELS[item.realm] || item.realm}
+                  {getRealmLabel(item.realm)}
                 </span>
                 <span className="text-[11px] text-gray-400">
                   {(item.ratio * 100).toFixed(0)}%
@@ -86,3 +88,6 @@ export default function RegionStats({ stats }: RegionStatsProps) {
     </div>
   );
 }
+
+/** 불필요한 리렌더링 방지를 위한 메모이제이션 */
+export default memo(RegionStats);

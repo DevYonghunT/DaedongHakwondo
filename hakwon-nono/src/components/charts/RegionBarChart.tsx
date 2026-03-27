@@ -11,7 +11,8 @@ import {
   Legend,
   Cell,
 } from 'recharts';
-import { REALM_COLORS, REALM_LABELS } from '@/lib/constants';
+import { memo } from 'react';
+import { getRealmColor, getRealmLabel } from '@/lib/constants';
 
 /** 바차트 데이터 항목 */
 interface RegionBarData {
@@ -45,7 +46,7 @@ const CustomTooltip = ({
   return (
     <div className="bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
       <p className="text-sm font-medium text-gray-800 mb-2">
-        {REALM_LABELS[label || ''] || label}
+        {getRealmLabel(label || '') || label}
       </p>
       {payload.map((item) => (
         <div key={item.dataKey} className="flex items-center gap-2 text-sm">
@@ -62,11 +63,12 @@ const CustomTooltip = ({
   );
 };
 
-export default function RegionBarChart({ data, height = 300 }: RegionBarChartProps) {
+/** 지역별 비율 비교 바 차트 컴포넌트 */
+function RegionBarChart({ data, height = 300 }: RegionBarChartProps) {
   // 데이터 가공: 레이블 축약
   const chartData = data.map((item) => ({
     ...item,
-    label: REALM_LABELS[item.realm] || item.realm,
+    label: getRealmLabel(item.realm),
     ratioPercent: item.ratio * 100,
     avgRatioPercent: item.avgRatio * 100,
   }));
@@ -118,7 +120,7 @@ export default function RegionBarChart({ data, height = 300 }: RegionBarChartPro
           {chartData.map((entry) => (
             <Cell
               key={entry.realm}
-              fill={REALM_COLORS[entry.realm] || '#3B82F6'}
+              fill={getRealmColor(entry.realm)}
             />
           ))}
         </Bar>
@@ -133,3 +135,6 @@ export default function RegionBarChart({ data, height = 300 }: RegionBarChartPro
     </ResponsiveContainer>
   );
 }
+
+/** 불필요한 리렌더링 방지를 위한 메모이제이션 */
+export default memo(RegionBarChart);
