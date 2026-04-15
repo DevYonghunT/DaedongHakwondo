@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from "react";
 import {
   BarChart,
   Bar,
@@ -10,72 +10,52 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-} from 'recharts';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Building2, GraduationCap, BarChart3, MapPin } from 'lucide-react';
-import Header from '@/components/Header';
-import RealmPieChart from '@/components/charts/RealmPieChart';
-import { StatSkeleton } from '@/components/ui/Skeleton';
-import Skeleton from '@/components/ui/Skeleton';
-import Card from '@/components/ui/Card';
+} from "recharts";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { Building2, GraduationCap, BarChart3, MapPin } from "lucide-react";
+import PageShell from "@/components/layout/PageShell";
+import RealmPieChart from "@/components/charts/RealmPieChart";
+import { StatSkeleton } from "@/components/ui/Skeleton";
+import Skeleton from "@/components/ui/Skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { cn } from "@/lib/utils";
+import CommandSearch from "@/components/layout/CommandSearch";
+import { useCmdK } from "@/lib/hooks/useCmdK";
 
-/** 전국 통계 데이터 */
 interface NationalStats {
   totalAcademies: number;
   totalSchools: number;
-  bySido: Array<{
-    sido: string;
-    count: number;
-  }>;
-  byRealm: Array<{
-    realm: string;
-    count: number;
-  }>;
-  topDense: Array<{
-    sido: string;
-    sigungu: string;
-    count: number;
-  }>;
+  bySido: Array<{ sido: string; count: number }>;
+  byRealm: Array<{ realm: string; count: number }>;
+  topDense: Array<{ sido: string; sigungu: string; count: number }>;
 }
 
-// 시도별 색상 팔레트
 const SIDO_COLORS = [
-  '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981',
-  '#6366F1', '#14B8A6', '#F97316', '#EF4444', '#06B6D4',
-  '#84CC16', '#D946EF', '#A855F7', '#0EA5E9', '#22C55E',
-  '#E11D48', '#7C3AED',
+  "#D97757", "#A78232", "#9333EA", "#0891B2", "#16A34A",
+  "#2563EB", "#EC4899", "#EA580C", "#0D9488", "#CA8A04",
+  "#84CC16", "#D946EF", "#A855F7", "#0EA5E9", "#22C55E",
+  "#E11D48", "#7C3AED",
 ];
 
-/** 숫자 카운트업 애니메이션 컴포넌트 */
 function AnimatedNumber({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const motionVal = useMotionValue(0);
-  const rounded = useTransform(motionVal, (latest) =>
-    Math.round(latest).toLocaleString()
-  );
+  const rounded = useTransform(motionVal, (latest) => Math.round(latest).toLocaleString());
 
   useEffect(() => {
-    const controls = animate(motionVal, value, {
-      duration: 1.2,
-      ease: 'easeOut',
-    });
+    const controls = animate(motionVal, value, { duration: 1.1, ease: "easeOut" });
     return controls.stop;
   }, [value, motionVal]);
 
-  // rounded 값을 구독해서 DOM에 반영
   useEffect(() => {
-    const unsubscribe = rounded.on('change', (v) => {
-      if (ref.current) {
-        ref.current.textContent = v;
-      }
+    return rounded.on("change", (v) => {
+      if (ref.current) ref.current.textContent = v;
     });
-    return unsubscribe;
   }, [rounded]);
 
-  return <span ref={ref}>0</span>;
+  return <span ref={ref} className="tabular-nums">0</span>;
 }
 
-// 커스텀 툴팁
 const BarTooltip = ({
   active,
   payload,
@@ -87,167 +67,128 @@ const BarTooltip = ({
 }) => {
   if (!active || !payload || !payload[0]) return null;
   return (
-    <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-secondary-200">
-      <p className="text-sm font-medium text-secondary-800">{label}</p>
-      <p className="text-sm text-accent-600 font-bold">{payload[0].value.toLocaleString()}개</p>
+    <div className="rounded-md border border-border bg-card px-3 py-2 shadow-overlay">
+      <p className="text-sm font-medium text-foreground">{label}</p>
+      <p className="text-sm font-bold text-primary tabular-nums">
+        {payload[0].value.toLocaleString()}개
+      </p>
     </div>
   );
 };
 
-/** stagger 페이드인 애니메이션 설정 */
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
-
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: 'easeOut' as const },
-  },
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } },
 };
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<NationalStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  useCmdK(() => setCmdOpen(true));
 
-  // 전국 통계 조회
   useEffect(() => {
-    const fetchStats = async () => {
+    (async () => {
       try {
-        const res = await fetch('/api/districts/stats');
-        if (!res.ok) throw new Error('통계 조회 실패');
+        const res = await fetch("/api/districts/stats");
+        if (!res.ok) throw new Error("통계 조회 실패");
         const data = await res.json();
         setStats(data);
-      } catch (err) {
-        console.error('전국 통계 조회 오류:', err);
-        setError('전국 통계 데이터를 불러올 수 없습니다');
+      } catch {
+        setError("전국 통계 데이터를 불러올 수 없습니다");
       } finally {
         setIsLoading(false);
       }
-    };
-
-    fetchStats();
+    })();
   }, []);
 
+  const sortedSido = stats ? [...stats.bySido].sort((a, b) => b.count - a.count) : [];
+
   return (
-    <div className="min-h-screen bg-secondary-50">
-      {/* 공통 헤더 */}
-      <Header title="전국 현황 대시보드" />
+    <PageShell
+      title="전국 사교육 한눈에 보기"
+      description="전국 21만 개 학원·교습소와 1만 1천여 학교의 시도별·분야별 분포 현황입니다."
+      onOpenSearch={() => setCmdOpen(true)}
+    >
+      <CommandSearch open={cmdOpen} onOpenChange={setCmdOpen} />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* 로딩 스켈레톤 */}
-        {isLoading && (
-          <div className="space-y-8">
-            {/* 빅 넘버 스켈레톤 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <StatSkeleton key={i} />
-              ))}
+      {isLoading && (
+        <div className="space-y-7">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <StatSkeleton key={i} />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="rounded-lg border border-border bg-card p-6">
+              <Skeleton width="w-40" height="h-5" className="mb-4" />
+              <Skeleton height="h-[400px]" />
             </div>
-            {/* 차트 스켈레톤 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl border border-secondary-200 p-6">
-                <Skeleton width="w-40" height="h-5" className="mb-4" />
-                <Skeleton height="h-[400px]" />
-              </div>
-              <div className="bg-white rounded-2xl border border-secondary-200 p-6">
-                <Skeleton width="w-40" height="h-5" className="mb-4" />
-                <Skeleton height="h-[400px]" />
-              </div>
+            <div className="rounded-lg border border-border bg-card p-6">
+              <Skeleton width="w-40" height="h-5" className="mb-4" />
+              <Skeleton height="h-[400px]" />
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* 에러 상태 */}
-        {error && !isLoading && (
-          <div className="text-center py-16">
-            <p className="text-secondary-600">{error}</p>
-          </div>
-        )}
+      {error && !isLoading && (
+        <p className="text-center py-16 text-muted-foreground">{error}</p>
+      )}
 
-        {/* 대시보드 콘텐츠 */}
-        {stats && !isLoading && (
-          <motion.div
-            className="space-y-8"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* 빅 넘버 카드 — Card 컴포넌트 적용, stagger 페이드인 + 숫자 카운팅 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card padding="lg" variants={itemVariants}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-accent-600" />
-                  </div>
-                  <p className="text-sm text-secondary-500">전국 학원 수</p>
-                </div>
-                <p className="text-3xl font-bold text-secondary-900">
-                  <AnimatedNumber value={stats.totalAcademies} />
-                </p>
-              </Card>
+      {stats && !isLoading && (
+        <motion.div
+          className="space-y-7"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* KPI 카드 */}
+          <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KPI
+              icon={<Building2 className="h-4 w-4" />}
+              tone="primary"
+              label="전국 학원 수"
+              value={stats.totalAcademies}
+            />
+            <KPI
+              icon={<GraduationCap className="h-4 w-4" />}
+              tone="success"
+              label="전국 학교 수"
+              value={stats.totalSchools}
+            />
+            <KPI
+              icon={<BarChart3 className="h-4 w-4" />}
+              tone="accent"
+              label="분야 수"
+              value={stats.byRealm.length}
+            />
+            <KPI
+              icon={<MapPin className="h-4 w-4" />}
+              tone="warning"
+              label="시도 수"
+              value={stats.bySido.length}
+            />
+          </motion.div>
 
-              <Card padding="lg" variants={itemVariants}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-success-100 flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-success-600" />
-                  </div>
-                  <p className="text-sm text-secondary-500">전국 학교 수</p>
-                </div>
-                <p className="text-3xl font-bold text-secondary-900">
-                  <AnimatedNumber value={stats.totalSchools} />
-                </p>
-              </Card>
-
-              <Card padding="lg" variants={itemVariants}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-                    <BarChart3 className="w-5 h-5 text-violet-600" />
-                  </div>
-                  <p className="text-sm text-secondary-500">분야 수</p>
-                </div>
-                <p className="text-3xl font-bold text-secondary-900">
-                  <AnimatedNumber value={stats.byRealm.length} />
-                </p>
-              </Card>
-
-              <Card padding="lg" variants={itemVariants}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-warning-100 flex items-center justify-center">
-                    <MapPin className="w-5 h-5 text-warning-600" />
-                  </div>
-                  <p className="text-sm text-secondary-500">시도 수</p>
-                </div>
-                <p className="text-3xl font-bold text-secondary-900">
-                  <AnimatedNumber value={stats.bySido.length} />
-                </p>
-              </Card>
-            </div>
-
-            {/* 차트 행 — Card 컴포넌트 적용, 페이드인 */}
-            <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 시도별 학원 수 바 차트 */}
-              <Card padding="lg">
-                <h3 className="text-lg font-bold text-secondary-800 mb-4">시도별 학원 수</h3>
+          {/* 차트 행 */}
+          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="font-serif-display text-base">시도별 학원 수</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <ResponsiveContainer width="100%" height={400}>
-                  <BarChart
-                    data={[...stats.bySido].sort((a, b) => b.count - a.count)}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F3F4F6" />
+                  <BarChart data={sortedSido} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
                     <XAxis
                       type="number"
-                      tick={{ fontSize: 11, fill: '#9CA3AF' }}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                       tickFormatter={(v: number) => v.toLocaleString()}
                       axisLine={false}
                       tickLine={false}
@@ -255,113 +196,146 @@ export default function DashboardPage() {
                     <YAxis
                       type="category"
                       dataKey="sido"
-                      tick={{ fontSize: 12, fill: '#4B5563' }}
+                      tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
                       axisLine={false}
                       tickLine={false}
                       width={75}
                     />
-                    <Tooltip content={<BarTooltip />} />
-                    <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={24}>
-                      {[...stats.bySido]
-                        .sort((a, b) => b.count - a.count)
-                        .map((_, index) => (
-                          <Cell key={index} fill={SIDO_COLORS[index % SIDO_COLORS.length]} />
-                        ))}
+                    <Tooltip content={<BarTooltip />} cursor={{ fill: "hsl(var(--secondary))" }} />
+                    <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={22}>
+                      {sortedSido.map((_, i) => (
+                        <Cell key={i} fill={SIDO_COLORS[i % SIDO_COLORS.length]} />
+                      ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </Card>
+              </CardContent>
+            </Card>
 
-              {/* 분야별 분포 도넛 차트 */}
-              <Card padding="lg">
-                <h3 className="text-lg font-bold text-secondary-800 mb-4">분야별 분포</h3>
-                <RealmPieChart
-                  data={stats.byRealm}
-                  height={400}
-                  innerRadius={70}
-                  outerRadius={130}
-                />
-              </Card>
-            </motion.div>
-
-            {/* Top 10 밀집 지역 — Card 컴포넌트 적용, 페이드인 */}
-            <Card padding="lg" variants={itemVariants}>
-              <h3 className="text-lg font-bold text-secondary-800 mb-4">학원 밀집도 Top 10 시군구</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-secondary-200">
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-                        순위
-                      </th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-                        시도
-                      </th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-                        시군구
-                      </th>
-                      <th className="text-right py-3 px-4 text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-                        학원 수
-                      </th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-secondary-500 uppercase tracking-wider w-1/3">
-                        비율
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-secondary-100">
-                    {stats.topDense.map((item, index) => {
-                      const maxCount = stats.topDense[0]?.count || 1;
-                      const barWidth = (item.count / maxCount) * 100;
-
-                      return (
-                        <tr key={`${item.sido}-${item.sigungu}`} className="hover:bg-secondary-50">
-                          <td className="py-3 px-4">
-                            <span
-                              className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
-                                index < 3
-                                  ? 'bg-accent-100 text-accent-700'
-                                  : 'bg-secondary-100 text-secondary-600'
-                              }`}
-                            >
-                              {index + 1}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-sm text-secondary-600">{item.sido}</td>
-                          <td className="py-3 px-4 text-sm font-medium text-secondary-800">
-                            {item.sigungu}
-                          </td>
-                          <td className="py-3 px-4 text-sm font-bold text-secondary-900 text-right">
-                            {item.count.toLocaleString()}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-secondary-100 rounded-full h-2.5">
-                                <div
-                                  className="h-2.5 rounded-full bg-gradient-to-r from-accent-400 to-accent-600 transition-all duration-500"
-                                  style={{ width: `${barWidth}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="font-serif-display text-base">분야별 분포</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RealmPieChart data={stats.byRealm} height={400} innerRadius={70} outerRadius={130} />
+              </CardContent>
             </Card>
           </motion.div>
-        )}
-      </div>
 
-      {/* 푸터 */}
-      <footer className="mt-8 py-6 bg-white border-t border-secondary-200">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-xs text-secondary-400">
-            교육 공공데이터 활용 | 나이스 교육정보 개방포털 | 제8회 교육 공공데이터 AI활용대회 출품작
-          </p>
-        </div>
-      </footer>
-    </div>
+          {/* Top 10 밀집 */}
+          <motion.div variants={itemVariants}>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="font-serif-display text-base">학원 밀집도 Top 10 시군구</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto -mx-2">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <Th className="w-12">#</Th>
+                        <Th>시도</Th>
+                        <Th>시군구</Th>
+                        <Th align="right">학원 수</Th>
+                        <Th className="w-1/3">비율</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {stats.topDense.map((item, i) => {
+                        const max = stats.topDense[0]?.count || 1;
+                        const w = (item.count / max) * 100;
+                        return (
+                          <tr key={`${item.sido}-${item.sigungu}`} className="hover:bg-secondary/40 transition-colors">
+                            <td className="py-2.5 px-3">
+                              <span
+                                className={cn(
+                                  "inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold tabular-nums",
+                                  i < 3
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-secondary text-secondary-foreground",
+                                )}
+                              >
+                                {i + 1}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-muted-foreground">{item.sido}</td>
+                            <td className="py-2.5 px-3 font-medium text-foreground">{item.sigungu}</td>
+                            <td className="py-2.5 px-3 text-right font-semibold text-foreground tabular-nums">
+                              {item.count.toLocaleString()}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-500"
+                                  style={{ width: `${w}%` }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+      )}
+    </PageShell>
+  );
+}
+
+function KPI({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  tone: "primary" | "success" | "accent" | "warning";
+}) {
+  const tones = {
+    primary: "bg-primary/10 text-primary",
+    success: "bg-success/10 text-success",
+    accent: "bg-accent/15 text-accent-foreground",
+    warning: "bg-warning/10 text-warning",
+  };
+  return (
+    <Card className="p-5">
+      <div className="flex items-center gap-2.5 mb-2">
+        <span className={cn("inline-flex h-8 w-8 items-center justify-center rounded-md", tones[tone])}>
+          {icon}
+        </span>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+      <p className="font-serif-display text-3xl font-semibold text-foreground">
+        <AnimatedNumber value={value} />
+      </p>
+    </Card>
+  );
+}
+
+function Th({
+  children,
+  align = "left",
+  className,
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+  className?: string;
+}) {
+  return (
+    <th
+      className={cn(
+        "py-2.5 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground",
+        align === "right" ? "text-right" : "text-left",
+        className,
+      )}
+    >
+      {children}
+    </th>
   );
 }

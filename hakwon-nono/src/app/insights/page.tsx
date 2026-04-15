@@ -13,7 +13,9 @@ import {
   ScatterChart,
   Scatter,
 } from 'recharts';
-import Header from '@/components/Header';
+import PageShell from '@/components/layout/PageShell';
+import CommandSearch from '@/components/layout/CommandSearch';
+import { useCmdK } from '@/lib/hooks/useCmdK';
 
 /** 지역별 상관관계 데이터 */
 interface DistrictData {
@@ -103,6 +105,8 @@ export default function InsightsPage() {
   const [data, setData] = useState<CorrelationResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  useCmdK(() => setCmdOpen(true));
 
   useEffect(() => {
     const fetchData = async () => {
@@ -222,11 +226,13 @@ export default function InsightsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-secondary-50">
-      {/* 공통 헤더 */}
-      <Header title="사교육 데이터 인사이트" />
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <PageShell
+      title="사교육 데이터 인사이트"
+      description="시군구별 학원 밀집도, 수강료, 분야 다양성 등 사교육 데이터의 상관관계를 탐색합니다."
+      onOpenSearch={() => setCmdOpen(true)}
+    >
+      <CommandSearch open={cmdOpen} onOpenChange={setCmdOpen} />
+      <div>
         {/* 로딩 상태 */}
         {isLoading && (
           <div className="flex items-center justify-center py-32">
@@ -499,15 +505,6 @@ export default function InsightsPage() {
           </div>
         )}
       </div>
-
-      {/* 푸터 */}
-      <footer className="mt-8 py-6 bg-white border-t border-secondary-200">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-xs text-secondary-400">
-            교육 공공데이터 활용 | 나이스 교육정보 개방포털 | 제8회 교육 공공데이터 AI활용대회 출품작
-          </p>
-        </div>
-      </footer>
-    </div>
+    </PageShell>
   );
 }

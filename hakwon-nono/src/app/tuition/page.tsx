@@ -12,7 +12,9 @@ import {
   Cell,
 } from 'recharts';
 import { getRealmColor, getRealmLabel } from '@/lib/constants';
-import Header from '@/components/Header';
+import PageShell from '@/components/layout/PageShell';
+import CommandSearch from '@/components/layout/CommandSearch';
+import { useCmdK } from '@/lib/hooks/useCmdK';
 
 /** 수강료 통계 항목 */
 interface TuitionStat {
@@ -86,6 +88,8 @@ export default function TuitionPage() {
   const [data, setData] = useState<TuitionResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  useCmdK(() => setCmdOpen(true));
 
   // 데이터 조회
   useEffect(() => {
@@ -183,18 +187,12 @@ export default function TuitionPage() {
   const cheapest = regionAvgData[regionAvgData.length - 1];
 
   return (
-    <div className="min-h-screen bg-secondary-50">
-      {/* 공통 헤더 */}
-      <Header title="사교육비 물가 지수" />
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* 페이지 타이틀 */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-secondary-900">사교육비 물가 지수</h2>
-          <p className="text-sm text-secondary-500 mt-1">
-            전국 학원 수강료 데이터를 기반으로 지역별, 분야별 사교육비 현황을 분석합니다.
-          </p>
-        </div>
+    <PageShell
+      title="사교육비 물가 지수"
+      description="전국 학원 수강료 데이터를 기반으로 지역별·분야별 사교육비 현황을 분석합니다."
+      onOpenSearch={() => setCmdOpen(true)}
+    >
+      <CommandSearch open={cmdOpen} onOpenChange={setCmdOpen} />
 
         {/* 로딩 상태 */}
         {isLoading && (
@@ -419,16 +417,6 @@ export default function TuitionPage() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* 푸터 */}
-      <footer className="mt-8 py-6 bg-white border-t border-secondary-200">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-xs text-secondary-400">
-            교육 공공데이터 활용 | 나이스 교육정보 개방포털 | 제8회 교육 공공데이터 AI활용대회 출품작
-          </p>
-        </div>
-      </footer>
-    </div>
+    </PageShell>
   );
 }

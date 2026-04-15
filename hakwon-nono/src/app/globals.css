@@ -2,148 +2,187 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #111827;
+@layer base {
+  :root {
+    /* ── Claude.ai 풍 라이트 토큰 (HSL) ─────────────────── */
+    --background: 48 33% 97%;          /* #FAF9F5 paper */
+    --foreground: 30 5% 12%;           /* #1F1E1D ink */
+
+    --card: 50 23% 95%;                /* #F5F4ED */
+    --card-foreground: 30 5% 12%;
+
+    --popover: 48 33% 97%;
+    --popover-foreground: 30 5% 12%;
+
+    --primary: 17 60% 59%;             /* #D97757 Crail orange */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 50 18% 92%;           /* #EFEEE5 muted surface */
+    --secondary-foreground: 30 6% 22%; /* #3A3733 */
+
+    --muted: 48 18% 90%;               /* #E8E6DC */
+    --muted-foreground: 30 5% 38%;     /* #6B6862 */
+
+    --accent: 35 28% 58%;              /* #BF9F6B tan */
+    --accent-foreground: 30 8% 14%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 145 55% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 33 86% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 45 18% 86%;              /* #E2E0D4 hairline */
+    --input: 45 18% 86%;
+    --ring: 17 60% 59%;                /* same as primary */
+
+    --radius: 0.75rem;
+
+    /* 분야 색 토큰 (지도/차트 공용) */
+    --realm-study: 222 78% 53%;        /* #2563EB */
+    --realm-art: 273 80% 56%;          /* #9333EA */
+    --realm-lang: 330 81% 60%;         /* #EC4899 */
+    --realm-job: 21 89% 48%;           /* #EA580C */
+    --realm-comprehensive: 175 84% 32%; /* #0D9488 */
+    --realm-reading: 45 92% 41%;       /* #CA8A04 */
+    --realm-etc: 30 6% 46%;            /* #78716C */
+    --realm-it: 192 91% 37%;           /* #0891B2 */
+    --realm-thinking: 142 71% 37%;     /* #16A34A */
+    --realm-special: 0 73% 50%;        /* #DC2626 */
+  }
+
+  .dark {
+    --background: 30 7% 14%;           /* #25241F */
+    --foreground: 50 23% 95%;
+    --card: 30 6% 18%;
+    --card-foreground: 50 23% 95%;
+    --popover: 30 6% 18%;
+    --popover-foreground: 50 23% 95%;
+    --primary: 17 64% 62%;
+    --primary-foreground: 30 8% 12%;
+    --secondary: 30 5% 22%;
+    --secondary-foreground: 50 23% 92%;
+    --muted: 30 5% 22%;
+    --muted-foreground: 30 5% 68%;
+    --accent: 35 28% 60%;
+    --accent-foreground: 30 8% 12%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 5% 28%;
+    --input: 30 5% 28%;
+    --ring: 17 64% 62%;
+  }
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    border-color: hsl(var(--border));
+  }
+  html, body { height: 100%; }
+  body {
+    color: hsl(var(--foreground));
+    background: hsl(var(--background));
+    font-family:
+      'Inter',
+      'Pretendard Variable',
+      Pretendard,
+      -apple-system,
+      BlinkMacSystemFont,
+      system-ui,
+      'Segoe UI',
+      Roboto,
+      'Helvetica Neue',
+      Arial,
+      'Noto Sans KR',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* 헤딩에 serif 톤을 살짝 — Claude.ai 분위기 */
+  .font-serif-display {
+    font-family: 'Source Serif Pro', 'Tiempos Text', ui-serif, Georgia, serif;
+    font-feature-settings: 'liga', 'dlig';
+    letter-spacing: -0.01em;
+  }
 }
 
-html,
-body {
-  height: 100%;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family:
-    'Pretendard Variable',
-    Pretendard,
-    -apple-system,
-    BlinkMacSystemFont,
-    system-ui,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    'Noto Sans KR',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* 스크롤바 커스텀 */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+/* 스크롤바 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
-  border-radius: 3px;
+  background: hsl(var(--border));
+  border-radius: 4px;
 }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #d1d5db;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* 가로 스크롤바 숨기기 (필터 바) */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* 슬라이드 인 (우측) */
+/* ── 애니메이션 ── */
 @keyframes slide-in-right {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
-
 @keyframes slide-out-right {
-  from {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateX(100%);
-    opacity: 0;
-  }
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
 }
-
-/* 슬라이드 업 (모바일 바텀시트) */
 @keyframes slide-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4); }
+  70% { box-shadow: 0 0 0 12px hsl(var(--primary) / 0); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+}
+.animate-slide-in-right { animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-slide-out-right { animation: slide-out-right 0.2s ease-in; }
+.animate-slide-up { animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-fade-in { animation: fade-in 0.15s ease-out; }
+.animate-fade-in-up { animation: fade-in-up 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-pulse-ring { animation: pulse-ring 1.6s infinite; }
 
-.animate-slide-in-right {
-  animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
+.recharts-responsive-container { min-height: 0; }
 
-.animate-slide-out-right {
-  animation: slide-out-right 0.2s ease-in;
+/* Leaflet 토큰 적용 */
+.leaflet-container {
+  font-family: inherit !important;
+  background: hsl(var(--muted)) !important;
 }
-
-.animate-slide-up {
-  animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+.leaflet-popup-content-wrapper {
+  background: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.15) !important;
+  border: 1px solid hsl(var(--border)) !important;
 }
-
-.animate-fade-in {
-  animation: fade-in 0.15s ease-out;
+.leaflet-popup-tip { background: hsl(var(--popover)) !important; }
+.leaflet-control-zoom a {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--border)) !important;
 }
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Recharts 반응형 컨테이너 */
-.recharts-responsive-container {
-  min-height: 0;
-}
+.leaflet-bar { box-shadow: 0 2px 8px rgb(0 0 0 / 0.06) !important; }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-balance { text-wrap: balance; }
+  .glass {
+    background: hsl(var(--card) / 0.85);
+    backdrop-filter: saturate(140%) blur(8px);
+    -webkit-backdrop-filter: saturate(140%) blur(8px);
   }
 }

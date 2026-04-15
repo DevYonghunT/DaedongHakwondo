@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeftRight, Lightbulb } from 'lucide-react';
-import Header from '@/components/Header';
+import PageShell from '@/components/layout/PageShell';
+import CommandSearch from '@/components/layout/CommandSearch';
+import { useCmdK } from '@/lib/hooks/useCmdK';
 import RealmPieChart from '@/components/charts/RealmPieChart';
 import RegionBarChart from '@/components/charts/RegionBarChart';
 import { getRealmColor } from '@/lib/constants';
@@ -70,6 +72,10 @@ export default function ComparePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [insight, setInsight] = useState<string>('');
+
+  // Cmd+K
+  const [cmdOpen, setCmdOpen] = useState(false);
+  useCmdK(() => setCmdOpen(true));
 
   // 시군구 목록 조회
   const fetchSigunguList = useCallback(async (sido: string, setter: (list: string[]) => void) => {
@@ -178,11 +184,13 @@ export default function ComparePage() {
   };
 
   return (
-    <div className="min-h-screen bg-secondary-50">
-      {/* 공통 헤더 */}
-      <Header title="지역 비교" />
-
-      <div className="max-w-6xl mx-auto px-4 py-8">
+    <PageShell
+      title="지역 비교 분석"
+      description="시도·시군구 단위로 두 지역의 사교육 환경 (학원 수·분야·수강료)을 나란히 비교합니다."
+      onOpenSearch={() => setCmdOpen(true)}
+    >
+      <CommandSearch open={cmdOpen} onOpenChange={setCmdOpen} />
+      <div>
         {/* 지역 선택 — Card 컴포넌트 적용 */}
         <Card padding="lg" className="mb-8">
           <h2 className="text-lg font-bold text-secondary-800 mb-4">비교할 두 지역을 선택하세요</h2>
@@ -252,13 +260,12 @@ export default function ComparePage() {
           {/* 비교 버튼 — Button 컴포넌트 적용 */}
           <div className="mt-6 flex justify-center">
             <Button
-              variant="primary"
+              variant="default"
               size="lg"
               onClick={handleCompare}
               disabled={!sido1 || !sigungu1 || !sido2 || !sigungu2 || isLoading}
-              isLoading={isLoading}
-              icon={<ArrowLeftRight className="w-4 h-4" />}
             >
+              <ArrowLeftRight className="w-4 h-4" />
               {isLoading ? '비교 분석 중...' : '비교하기'}
             </Button>
           </div>
@@ -431,6 +438,6 @@ export default function ComparePage() {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </PageShell>
   );
 }

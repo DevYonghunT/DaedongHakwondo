@@ -1,40 +1,92 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useRef, useMemo } from 'react';
-import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  BookOpen, Menu, X, Sparkles, Loader2,
-  BarChart3, GitCompare, Coins, Accessibility, Lightbulb,
-} from 'lucide-react';
-import MapView, { type MapBounds, type MapMarkerData } from '@/components/MapView';
-import FilterPanel, { type ViewMode } from '@/components/FilterPanel';
-import RegionStats, { type RegionStatsData } from '@/components/RegionStats';
-import SchoolSearch, { type SchoolResult } from '@/components/SchoolSearch';
-import SchoolDashboard from '@/components/SchoolDashboard';
-import AcademyDetail from '@/components/AcademyDetail';
-import SchoolDetail from '@/components/SchoolDetail';
-import RecommendPanel from '@/components/RecommendPanel';
-import { ALL_REALMS } from '@/lib/constants';
+import { useState, useCallback, useRef, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Loader2, Star, X } from "lucide-react";
+import MapView, { type MapBounds, type MapMarkerData } from "@/components/MapView";
+import FilterPanel, { type ViewMode } from "@/components/FilterPanel";
+import RegionStats, { type RegionStatsData } from "@/components/RegionStats";
+import AcademyDetail from "@/components/AcademyDetail";
+import SchoolDetail from "@/components/SchoolDetail";
+import RecommendPanel from "@/components/RecommendPanel";
+import SchoolDashboard from "@/components/SchoolDashboard";
+import SiteHeader from "@/components/layout/SiteHeader";
+import CommandSearch from "@/components/layout/CommandSearch";
+import { Button } from "@/components/ui/Button";
+import { Sheet, SheetContent } from "@/components/ui/Sheet";
+import { ALL_REALMS } from "@/lib/constants";
+import { useCmdK } from "@/lib/hooks/useCmdK";
+import { useFavorites } from "@/lib/hooks/useFavorites";
 
-export default function Home() {
-  // 상태 관리
+interface SchoolHit {
+  id: string;
+  schoolNm: string;
+  schoolKind: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+function HomeContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialAcademyId = searchParams.get("academyId");
+  const initialSchoolId = searchParams.get("schoolId");
+
+  // 상태
   const [selectedRealms, setSelectedRealms] = useState<string[]>([...ALL_REALMS]);
-  const [viewMode, setViewMode] = useState<ViewMode>('marker');
+  const [viewMode, setViewMode] = useState<ViewMode>("marker");
   const [markers, setMarkers] = useState<MapMarkerData[]>([]);
   const [regionStats, setRegionStats] = useState<RegionStatsData | null>(null);
-  const [selectedSchool, setSelectedSchool] = useState<SchoolResult | null>(null);
+  const [selectedSchool, setSelectedSchool] = useState<SchoolHit | null>(null);
   const [schoolRadius, setSchoolRadius] = useState(2);
   const [, setIsLoadingAcademies] = useState(false);
   const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [selectedAcademyId, setSelectedAcademyId] = useState<string | null>(null);
+  const [selectedAcademyId, setSelectedAcademyId] = useState<string | null>(initialAcademyId);
   const [showSchoolDetail, setShowSchoolDetail] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showCmdK, setShowCmdK] = useState(false);
+  const [favSheetOpen, setFavSheetOpen] = useState(false);
+
+  // Cmd+K 단축키
+  useCmdK(() => setShowCmdK(true));
+
+  // URL → 학교 쿼리 파라미터로 들어왔을 때 자동 로드
+  useEffect(() => {
+    if (initialSchoolId && !selectedSchool) {
+      (async () => {
+        try {
+          const res = await fetch(`/api/schools/${initialSchoolId}/detail`);
+          if (res.ok) {
+            const json = await res.json();
+            const s = json.school;
+            setSelectedSchool({
+              id: s.id,
+              schoolNm: s.name,
+              schoolKind: s.kind,
+              address: s.address,
+              latitude: s.lat,
+              longitude: s.lng,
+            });
+            setShowSchoolDetail(true);
+          }
+        } catch (err) {
+          console.warn("URL 학교 로드 실패", err);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSchoolId]);
 
   // 사이드패널 활성 여부
-  const hasSidePanel = !!(selectedAcademyId || (showSchoolDetail && selectedSchool) || showRecommend || selectedSchool);
+  const hasSidePanel = !!(
+    selectedAcademyId ||
+    (showSchoolDetail && selectedSchool) ||
+    showRecommend ||
+    selectedSchool
+  );
 
   // 지도 인스턴스 참조
   const mapRef = useRef<unknown>(null);
@@ -52,63 +104,66 @@ export default function Home() {
 
       try {
         const realms = realmsOverride ?? selectedRealmsRef.current;
-
         if (realms.length === 0) {
           setMarkers([]);
           setRegionStats({ total: 0, breakdown: [] });
-          setIsLoadingAcademies(false);
           return;
         }
-
-        const realmParam = realms.length < ALL_REALMS.length
-          ? `&realm=${encodeURIComponent(realms.join(','))}`
-          : '';
-
+        const realmParam =
+          realms.length < ALL_REALMS.length
+            ? `&realm=${encodeURIComponent(realms.join(","))}`
+            : "";
         const res = await fetch(
-          `/api/academies?swLat=${bounds.sw.lat}&swLng=${bounds.sw.lng}&neLat=${bounds.ne.lat}&neLng=${bounds.ne.lng}${realmParam}&limit=5000`
+          `/api/academies?swLat=${bounds.sw.lat}&swLng=${bounds.sw.lng}&neLat=${bounds.ne.lat}&neLng=${bounds.ne.lng}${realmParam}&limit=5000`,
         );
-
-        if (!res.ok) throw new Error('데이터 조회 실패');
-
+        if (!res.ok) throw new Error("데이터 조회 실패");
         const data = await res.json();
         const academies = data.academies || [];
 
         const newMarkers: MapMarkerData[] = academies
-          .filter((a: { latitude: number | null; longitude: number | null }) => a.latitude && a.longitude)
-          .map((a: { id: string; latitude: number; longitude: number; academyNm: string; realmScNm: string | null }) => ({
-            id: a.id,
-            lat: a.latitude,
-            lng: a.longitude,
-            name: a.academyNm,
-            realm: a.realmScNm || undefined,
-            type: 'academy' as const,
-          }));
-
+          .filter(
+            (a: { latitude: number | null; longitude: number | null }) =>
+              a.latitude && a.longitude,
+          )
+          .map(
+            (a: {
+              id: string;
+              latitude: number;
+              longitude: number;
+              academyNm: string;
+              realmScNm: string | null;
+            }) => ({
+              id: a.id,
+              lat: a.latitude,
+              lng: a.longitude,
+              name: a.academyNm,
+              realm: a.realmScNm || undefined,
+              type: "academy" as const,
+            }),
+          );
         setMarkers(newMarkers);
 
         const realmCounts: Record<string, number> = {};
         newMarkers.forEach((m: MapMarkerData) => {
-          const realm = m.realm || '기타';
+          const realm = m.realm || "기타";
           realmCounts[realm] = (realmCounts[realm] || 0) + 1;
         });
-
         const total = newMarkers.length;
         const breakdown = Object.entries(realmCounts).map(([realm, count]) => ({
           realm,
           count,
           ratio: total > 0 ? count / total : 0,
         }));
-
         setRegionStats({ total, breakdown });
       } catch (err) {
-        console.error('학원 데이터 조회 오류:', err);
+        console.error("학원 데이터 조회 오류:", err);
       } finally {
         setIsLoadingAcademies(false);
         if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
         setShowLoadingIndicator(false);
       }
     },
-    []
+    [],
   );
 
   const handleBoundsChanged = useCallback(
@@ -116,14 +171,14 @@ export default function Home() {
       boundsRef.current = bounds;
       fetchAcademies(bounds);
     },
-    [fetchAcademies]
+    [fetchAcademies],
   );
 
   const handleMapReady = useCallback((map: unknown) => {
     mapRef.current = map;
   }, []);
 
-  const handleSchoolSelect = useCallback((school: SchoolResult) => {
+  const handleSchoolSelect = useCallback((school: SchoolHit) => {
     setSelectedSchool(school);
     setShowSchoolDetail(true);
     setSelectedAcademyId(null);
@@ -137,10 +192,6 @@ export default function Home() {
     return null;
   }, [selectedSchool?.latitude, selectedSchool?.longitude]);
 
-  const handleCloseDashboard = useCallback(() => {
-    setSelectedSchool(null);
-  }, []);
-
   const handleRealmsChange = useCallback(
     (realms: string[]) => {
       setSelectedRealms(realms);
@@ -148,125 +199,50 @@ export default function Home() {
         fetchAcademies(boundsRef.current, realms);
       }
     },
-    [fetchAcademies]
+    [fetchAcademies],
   );
 
-  // 모든 사이드 패널 닫기
   const closeAllPanels = useCallback(() => {
     setSelectedAcademyId(null);
     setShowSchoolDetail(false);
     setShowRecommend(false);
     setSelectedSchool(null);
-  }, []);
+    // URL 정리
+    if (initialAcademyId || initialSchoolId) {
+      router.replace("/");
+    }
+  }, [initialAcademyId, initialSchoolId, router]);
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* ── 헤더 (Airbnb 스타일) ── */}
-      {/* 시맨틱 디자인 토큰 적용된 헤더 */}
-      <header className="flex-shrink-0 bg-white border-b border-secondary-100 z-[1100]">
-        {/* 상단 네비게이션 */}
-        <div className="h-16 px-6 flex items-center gap-4">
-          {/* 로고 */}
-          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0 mr-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-bold text-secondary-900 hidden sm:inline tracking-tight">
-              대동학원도
-            </span>
-          </Link>
+    <div className="flex flex-col h-screen bg-background">
+      {/* 헤더 */}
+      <SiteHeader
+        onOpenSearch={() => setShowCmdK(true)}
+        actions={
+          <FavoritesQuickButton onOpen={() => setFavSheetOpen(true)} />
+        }
+        variant="floating"
+      />
 
-          {/* 검색바 (Airbnb 스타일 pill) */}
-          <div className="flex-1 max-w-xl">
-            <SchoolSearch onSchoolSelect={handleSchoolSelect} />
-          </div>
+      {/* 필터 바 (헤더 하단) */}
+      <FilterPanel
+        selectedRealms={selectedRealms}
+        onRealmsChange={handleRealmsChange}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+      />
 
-          {/* 네비게이션 링크 */}
-          {/* 데스크톱 네비게이션 (아이콘 포함) */}
-          <nav className="hidden lg:flex items-center gap-1 ml-auto">
-            {[
-              { href: '/dashboard', label: '전국 현황', icon: BarChart3 },
-              { href: '/compare', label: '지역 비교', icon: GitCompare },
-              { href: '/tuition', label: '수강료', icon: Coins },
-              { href: '/equity', label: '접근성', icon: Accessibility },
-              { href: '/insights', label: '인사이트', icon: Lightbulb },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="px-3.5 py-2 text-sm text-secondary-500 hover:text-secondary-900 hover:bg-secondary-50 rounded-full transition-all font-medium flex items-center gap-1.5"
-              >
-                <link.icon className="w-3.5 h-3.5" />
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* 모바일 메뉴 버튼 */}
-          <button
-            onClick={() => setMobileNavOpen(!mobileNavOpen)}
-            className="lg:hidden p-2 hover:bg-secondary-50 rounded-full transition-colors"
-          >
-            {mobileNavOpen ? (
-              <X className="w-5 h-5 text-secondary-600" />
-            ) : (
-              <Menu className="w-5 h-5 text-secondary-600" />
-            )}
-          </button>
-        </div>
-
-        {/* 모바일 네비게이션 드롭다운 (Framer Motion 애니메이션) */}
-        <AnimatePresence>
-          {mobileNavOpen && (
-            <motion.div
-              initial={{ opacity: 0, scaleY: 0 }}
-              animate={{ opacity: 1, scaleY: 1 }}
-              exit={{ opacity: 0, scaleY: 0 }}
-              transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-              style={{ transformOrigin: 'top' }}
-              className="lg:hidden border-t border-secondary-100 px-4 py-2 bg-white overflow-hidden"
-            >
-              {[
-                { href: '/dashboard', label: '전국 현황', icon: BarChart3 },
-                { href: '/compare', label: '지역 비교', icon: GitCompare },
-                { href: '/tuition', label: '수강료 현황', icon: Coins },
-                { href: '/equity', label: '접근성 분석', icon: Accessibility },
-                { href: '/insights', label: '데이터 인사이트', icon: Lightbulb },
-              ].map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50 rounded-lg"
-                  onClick={() => setMobileNavOpen(false)}
-                >
-                  <link.icon className="w-4 h-4" />
-                  {link.label}
-                </Link>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 필터 바 (가로 나열) */}
-        <FilterPanel
-          selectedRealms={selectedRealms}
-          onRealmsChange={handleRealmsChange}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-        />
-      </header>
-
-      {/* ── 메인 콘텐츠 (지도 + 사이드패널) ── */}
+      {/* 메인 콘텐츠 */}
       <main className="flex-1 relative overflow-hidden flex">
         {/* 지도 영역 */}
         <div className="flex-1 relative">
           <MapView
             onMapReady={handleMapReady}
             onBoundsChanged={handleBoundsChanged}
-            markers={viewMode === 'marker' ? markers : []}
-            heatmapData={viewMode === 'heatmap' ? markers : []}
+            markers={viewMode === "marker" ? markers : []}
+            heatmapData={viewMode === "heatmap" ? markers : []}
             onMarkerClick={(marker) => {
-              if (marker.type !== 'school') {
+              if (marker.type !== "school") {
                 setSelectedAcademyId(marker.id);
                 setSelectedSchool(null);
                 setShowRecommend(false);
@@ -282,19 +258,19 @@ export default function Home() {
             }}
           />
 
-          {/* 로딩 인디케이터 (Framer Motion 페이드 애니메이션) */}
+          {/* 로딩 인디케이터 */}
           <AnimatePresence>
             {showLoadingIndicator && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
                 className="absolute top-4 left-1/2 -translate-x-1/2 z-[1100]"
               >
-                <div className="bg-white px-5 py-2.5 rounded-full shadow-lg border border-secondary-100 flex items-center gap-2.5">
-                  <Loader2 className="w-4 h-4 text-primary-500 animate-spin" />
-                  <span className="text-sm text-secondary-600 font-medium">데이터 로딩 중...</span>
+                <div className="rounded-full border border-border bg-card/95 backdrop-blur px-4 py-2 shadow-overlay flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span className="text-xs font-medium text-foreground">데이터 로딩 중...</span>
                 </div>
               </motion.div>
             )}
@@ -304,50 +280,44 @@ export default function Home() {
           <RegionStats stats={regionStats} />
 
           {/* 히트맵 범례 */}
-          {viewMode === 'heatmap' && (
-            <div className="absolute bottom-6 left-6 z-[1000] bg-white rounded-2xl shadow-lg border border-secondary-100 px-5 py-3.5">
-              <p className="text-xs font-semibold text-secondary-500 mb-2 tracking-wide">학원 밀집도</p>
+          {viewMode === "heatmap" && (
+            <div className="absolute bottom-6 left-6 z-[1000] rounded-xl border border-border bg-card/95 backdrop-blur px-4 py-3 shadow-overlay">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                학원 밀집도
+              </p>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-secondary-400 font-medium">낮음</span>
-                <div className="flex rounded-full overflow-hidden h-2.5">
-                  {['#60A5FA', '#A78BFA', '#F472B6', '#FBBF24', '#F87171'].map((color) => (
-                    <div key={color} className="w-7 h-2.5" style={{ backgroundColor: color }} />
+                <span className="text-[10px] text-muted-foreground">낮음</span>
+                <div className="flex h-2 overflow-hidden rounded-full">
+                  {["#60A5FA", "#A78BFA", "#F472B6", "#FBBF24", "#F87171"].map((color) => (
+                    <div key={color} className="h-2 w-7" style={{ backgroundColor: color }} />
                   ))}
                 </div>
-                <span className="text-[10px] text-secondary-400 font-medium">높음</span>
+                <span className="text-[10px] text-muted-foreground">높음</span>
               </div>
             </div>
           )}
 
-          {/* AI 학원 추천 FAB */}
+          {/* AI 추천 FAB */}
           {!showRecommend && (
-            <button
+            <Button
               onClick={() => {
                 setShowRecommend(true);
                 setSelectedAcademyId(null);
                 setShowSchoolDetail(false);
               }}
-              className="absolute bottom-6 right-6 z-[1000] bg-secondary-900 hover:bg-secondary-800 text-white pl-4 pr-5 py-3 rounded-full shadow-xl hover:shadow-2xl transition-all flex items-center gap-2 text-sm font-semibold group"
+              className="absolute bottom-6 right-6 z-[1000] shadow-overlay"
+              size="lg"
             >
-              <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <Sparkles className="h-4 w-4" />
               AI 추천
-            </button>
+            </Button>
           )}
         </div>
 
-        {/* ── 사이드 패널 (슬라이드 인) ── */}
+        {/* 데스크탑 사이드 패널 */}
         {hasSidePanel && (
-          <div className="w-[420px] flex-shrink-0 border-l border-secondary-100 bg-white relative z-[1050] animate-slide-in-right overflow-hidden hidden md:block">
-            {/* 닫기 버튼 */}
-            <button
-              onClick={closeAllPanels}
-              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white hover:bg-secondary-50 shadow-sm border border-secondary-200 transition-colors"
-            >
-              <X className="w-4 h-4 text-secondary-500" />
-            </button>
-
+          <aside className="w-[440px] flex-shrink-0 border-l border-border bg-card relative z-[1050] animate-slide-in-right overflow-hidden hidden md:block">
             <div className="h-full overflow-y-auto">
-              {/* 학원 상세 */}
               {selectedAcademyId && (
                 <AcademyDetail
                   academyId={selectedAcademyId}
@@ -355,8 +325,6 @@ export default function Home() {
                   embedded
                 />
               )}
-
-              {/* 학교 상세 */}
               {showSchoolDetail && selectedSchool && !selectedAcademyId && (
                 <SchoolDetail
                   schoolId={selectedSchool.id}
@@ -364,8 +332,6 @@ export default function Home() {
                   embedded
                 />
               )}
-
-              {/* AI 추천 */}
               {showRecommend && !selectedAcademyId && !(showSchoolDetail && selectedSchool) && (
                 <RecommendPanel
                   school={
@@ -383,70 +349,162 @@ export default function Home() {
                   embedded
                 />
               )}
-
-              {/* 학교 대시보드 (패널 하단) */}
               {selectedSchool && !selectedAcademyId && !showSchoolDetail && !showRecommend && (
                 <SchoolDashboard
                   school={selectedSchool}
-                  onClose={handleCloseDashboard}
+                  onClose={() => setSelectedSchool(null)}
                   onRadiusChange={setSchoolRadius}
                   embedded
                 />
               )}
             </div>
-          </div>
+            {/* 닫기 모두 */}
+            <button
+              onClick={closeAllPanels}
+              className="absolute top-3 right-3 z-10 h-7 w-7 rounded-md inline-flex items-center justify-center bg-card/80 border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              aria-label="패널 모두 닫기"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </aside>
         )}
 
-        {/* 모바일용 사이드패널 (오버레이) */}
-        {hasSidePanel && (
-          <div className="md:hidden fixed inset-0 z-[2000] flex flex-col">
-            {/* 오버레이 배경 */}
-            <div className="flex-1 bg-black/30" onClick={closeAllPanels} />
-            {/* 패널 (하단에서 올라옴) */}
-            <div className="h-[75vh] bg-white rounded-t-3xl shadow-2xl overflow-y-auto animate-slide-up">
-              <div className="sticky top-0 bg-white pt-3 pb-2 px-4 border-b border-secondary-100 z-10">
-                <div className="w-10 h-1 bg-secondary-300 rounded-full mx-auto mb-2" />
-                <button
-                  onClick={closeAllPanels}
-                  className="absolute top-3 right-4 p-1.5 hover:bg-secondary-50 rounded-full"
-                >
-                  <X className="w-5 h-5 text-secondary-400" />
-                </button>
-              </div>
-
-              {selectedAcademyId && (
-                <AcademyDetail
-                  academyId={selectedAcademyId}
-                  onClose={() => setSelectedAcademyId(null)}
-                  embedded
-                />
-              )}
-              {showSchoolDetail && selectedSchool && !selectedAcademyId && (
-                <SchoolDetail
-                  schoolId={selectedSchool.id}
-                  onClose={() => setShowSchoolDetail(false)}
-                  embedded
-                />
-              )}
-              {showRecommend && !selectedAcademyId && !(showSchoolDetail && selectedSchool) && (
-                <RecommendPanel
-                  school={selectedSchool ? { id: selectedSchool.id, name: selectedSchool.schoolNm, kind: selectedSchool.schoolKind, lat: selectedSchool.latitude, lng: selectedSchool.longitude } : null}
-                  onClose={() => setShowRecommend(false)}
-                  embedded
-                />
-              )}
-              {selectedSchool && !selectedAcademyId && !showSchoolDetail && !showRecommend && (
-                <SchoolDashboard
-                  school={selectedSchool}
-                  onClose={handleCloseDashboard}
-                  onRadiusChange={setSchoolRadius}
-                  embedded
-                />
-              )}
-            </div>
-          </div>
-        )}
+        {/* 모바일 사이드 패널 (Sheet) */}
+        <Sheet open={hasSidePanel} onOpenChange={(open) => !open && closeAllPanels()}>
+          <SheetContent side="bottom" className="md:hidden h-[80vh] p-0 overflow-y-auto">
+            {selectedAcademyId && (
+              <AcademyDetail
+                academyId={selectedAcademyId}
+                onClose={() => setSelectedAcademyId(null)}
+                embedded
+              />
+            )}
+            {showSchoolDetail && selectedSchool && !selectedAcademyId && (
+              <SchoolDetail
+                schoolId={selectedSchool.id}
+                onClose={() => setShowSchoolDetail(false)}
+                embedded
+              />
+            )}
+            {showRecommend && !selectedAcademyId && !(showSchoolDetail && selectedSchool) && (
+              <RecommendPanel
+                school={
+                  selectedSchool
+                    ? {
+                        id: selectedSchool.id,
+                        name: selectedSchool.schoolNm,
+                        kind: selectedSchool.schoolKind,
+                        lat: selectedSchool.latitude,
+                        lng: selectedSchool.longitude,
+                      }
+                    : null
+                }
+                onClose={() => setShowRecommend(false)}
+                embedded
+              />
+            )}
+            {selectedSchool && !selectedAcademyId && !showSchoolDetail && !showRecommend && (
+              <SchoolDashboard
+                school={selectedSchool}
+                onClose={() => setSelectedSchool(null)}
+                onRadiusChange={setSchoolRadius}
+                embedded
+              />
+            )}
+          </SheetContent>
+        </Sheet>
       </main>
+
+      {/* Cmd+K 명령창 */}
+      <CommandSearch open={showCmdK} onOpenChange={setShowCmdK} onSchoolSelect={handleSchoolSelect} />
+
+      {/* 즐겨찾기 시트 */}
+      <FavoritesSheet open={favSheetOpen} onOpenChange={setFavSheetOpen} />
     </div>
+  );
+}
+
+function FavoritesQuickButton({ onOpen }: { onOpen: () => void }) {
+  const { favorites } = useFavorites();
+  return (
+    <Button variant="ghost" size="sm" onClick={onOpen} className="gap-1.5">
+      <Star className="h-3.5 w-3.5" />
+      즐겨찾기
+      {favorites.length > 0 && (
+        <span className="rounded-full bg-primary/15 text-primary px-1.5 text-[10px] font-semibold tabular-nums">
+          {favorites.length}
+        </span>
+      )}
+    </Button>
+  );
+}
+
+function FavoritesSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const { favorites, remove } = useFavorites();
+  const router = useRouter();
+
+  const goTo = (item: { id: string; type: string }) => {
+    onOpenChange(false);
+    if (item.type === "school") router.push(`/?schoolId=${item.id}`);
+    else router.push(`/?academyId=${item.id}`);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:w-[380px]">
+        <div className="flex items-center gap-2 mb-5">
+          <Star className="h-5 w-5 text-warning fill-warning" />
+          <h2 className="font-serif-display text-lg font-semibold">즐겨찾기</h2>
+          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+            {favorites.length}개
+          </span>
+        </div>
+        {favorites.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-12">
+            아직 즐겨찾기한 학교/학원이 없습니다.
+            <br />
+            상세 패널의 ⭐ 버튼으로 추가해보세요.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {favorites.map((fav) => (
+              <div
+                key={`${fav.type}-${fav.id}`}
+                className="flex items-center gap-3 rounded-md border border-border bg-card p-3 hover:border-primary/30 transition-colors"
+              >
+                <button onClick={() => goTo(fav)} className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-medium text-foreground truncate">{fav.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {fav.type === "school" ? "학교" : "학원"} · {fav.subtitle || ""}
+                  </p>
+                </button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => remove(fav.id, fav.type)}
+                  aria-label="제거"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

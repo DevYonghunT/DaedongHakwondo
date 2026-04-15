@@ -12,7 +12,9 @@ import {
   Cell,
 } from 'recharts';
 import { OFFICE_CODE_TO_SIDO } from '@/lib/constants';
-import Header from '@/components/Header';
+import PageShell from '@/components/layout/PageShell';
+import CommandSearch from '@/components/layout/CommandSearch';
+import { useCmdK } from '@/lib/hooks/useCmdK';
 
 // 시도 목록
 const SIDO_LIST = Object.values(OFFICE_CODE_TO_SIDO);
@@ -97,6 +99,8 @@ export default function EquityPage() {
   const [data, setData] = useState<EquityData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  useCmdK(() => setCmdOpen(true));
 
   // 데이터 조회
   const fetchData = useCallback(async () => {
@@ -129,21 +133,12 @@ export default function EquityPage() {
     : [];
 
   return (
-    <div className="min-h-screen bg-secondary-50">
-      {/* 공통 헤더 */}
-      <Header title="접근성 격차 분석" />
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* 제목 + 설명 */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-secondary-900 mb-2">
-            사교육 접근성 격차 분석
-          </h2>
-          <p className="text-sm text-secondary-500 max-w-2xl">
-            각 학교 주변 반경 내 학원 수를 기준으로 사교육 접근성 지수를 산출합니다.
-            주변 학원이 적은 학교는 &quot;사각지대&quot;로 분류되어 교육 형평성 개선이 필요한 지역을 파악할 수 있습니다.
-          </p>
-        </div>
+    <PageShell
+      title="사교육 접근성 격차 분석"
+      description='각 학교 주변 반경 내 학원 수를 기준으로 사교육 접근성 지수를 산출합니다. 주변 학원이 적은 학교는 "사각지대"로 분류되어 교육 형평성 개선이 필요한 지역을 파악할 수 있습니다.'
+      onOpenSearch={() => setCmdOpen(true)}
+    >
+      <CommandSearch open={cmdOpen} onOpenChange={setCmdOpen} />
 
         {/* 컨트롤 패널 */}
         <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 p-5 mb-6">
@@ -478,16 +473,6 @@ export default function EquityPage() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* 푸터 */}
-      <footer className="mt-8 py-6 bg-white border-t border-secondary-200">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-xs text-secondary-400">
-            교육 공공데이터 활용 | 나이스 교육정보 개방포털 | 제8회 교육 공공데이터 AI활용대회 출품작
-          </p>
-        </div>
-      </footer>
-    </div>
+    </PageShell>
   );
 }

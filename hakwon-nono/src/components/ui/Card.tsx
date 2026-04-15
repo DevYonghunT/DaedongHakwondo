@@ -1,61 +1,98 @@
-'use client';
+"use client";
 
-import { type ReactNode } from 'react';
-import { motion, type HTMLMotionProps } from 'framer-motion';
+import * as React from "react";
+import { motion, type HTMLMotionProps } from "framer-motion";
+import { cn } from "@/lib/utils";
 
-type CardVariant = 'default' | 'interactive' | 'outlined' | 'elevated';
+type CardPadding = "none" | "sm" | "md" | "lg";
 
-interface CardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
-  variant?: CardVariant;
-  padding?: 'none' | 'sm' | 'md' | 'lg';
-  children: ReactNode;
+interface CardLegacyProps extends Omit<HTMLMotionProps<"div">, "children"> {
+  padding?: CardPadding;
+  variants?: HTMLMotionProps<"div">["variants"];
+  children: React.ReactNode;
 }
 
-const variantStyles: Record<CardVariant, string> = {
-  default:
-    'bg-white rounded-2xl border border-secondary-200 shadow-default',
-  interactive:
-    'bg-white rounded-2xl border border-secondary-200 shadow-default cursor-pointer',
-  outlined:
-    'bg-white rounded-2xl border border-secondary-200',
-  elevated:
-    'bg-white rounded-2xl shadow-raised',
+const paddingMap: Record<CardPadding, string> = {
+  none: "",
+  sm: "p-4",
+  md: "p-5",
+  lg: "p-6",
 };
 
-const paddingStyles: Record<string, string> = {
-  none: '',
-  sm: 'p-4',
-  md: 'p-5',
-  lg: 'p-6',
-};
-
-/** 공통 카드 컴포넌트 — 호버 시 elevation 변화 */
-export default function Card({
-  variant = 'default',
-  padding = 'md',
+/** 레거시 호환용 카드 — dashboard 등에서 default import 로 사용 */
+export default function CardLegacy({
+  padding = "md",
+  className = "",
   children,
-  className = '',
   ...props
-}: CardProps) {
-  const isInteractive = variant === 'interactive';
-
+}: CardLegacyProps) {
   return (
     <motion.div
-      whileHover={
-        isInteractive
-          ? { scale: 1.015, y: -2 }
-          : undefined
-      }
-      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-      className={`
-        ${variantStyles[variant]}
-        ${paddingStyles[padding]}
-        ${isInteractive ? 'hover:shadow-card-hover hover:border-secondary-300 transition-shadow duration-200' : ''}
-        ${className}
-      `}
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      className={cn(
+        "rounded-lg border border-border bg-card text-card-foreground shadow-soft",
+        paddingMap[padding],
+        className,
+      )}
       {...props}
     >
       {children}
     </motion.div>
   );
 }
+
+/** ── shadcn 호환 명명 export ── */
+const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        "rounded-lg border border-border bg-card text-card-foreground shadow-soft",
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
+Card.displayName = "Card";
+
+const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
+  ),
+);
+CardHeader.displayName = "CardHeader";
+
+const CardTitle = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn("text-base font-semibold leading-none tracking-tight", className)}
+      {...props}
+    />
+  ),
+);
+CardTitle.displayName = "CardTitle";
+
+const CardDescription = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
+  ),
+);
+CardDescription.displayName = "CardDescription";
+
+const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  ),
+);
+CardContent.displayName = "CardContent";
+
+const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("flex items-center p-6 pt-0", className)} {...props} />
+  ),
+);
+CardFooter.displayName = "CardFooter";
+
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter };

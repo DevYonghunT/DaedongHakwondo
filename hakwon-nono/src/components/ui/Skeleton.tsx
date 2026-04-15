@@ -1,4 +1,6 @@
-'use client';
+"use client";
+
+import { cn } from "@/lib/utils";
 
 interface SkeletonProps {
   className?: string;
@@ -10,32 +12,34 @@ interface SkeletonProps {
   height?: string;
 }
 
-/** 스켈레톤 로더 — 에어비앤비 스타일 shimmer 효과 */
+/** 스켈레톤 로더 */
 export default function Skeleton({
-  className = '',
+  className = "",
   circle = false,
   width,
   height,
 }: SkeletonProps) {
   return (
     <div
-      className={`
-        relative overflow-hidden bg-secondary-100
-        ${circle ? 'rounded-full' : 'rounded-xl'}
-        ${width || 'w-full'}
-        ${height || 'h-4'}
-        ${className}
-      `}
+      className={cn(
+        "relative overflow-hidden bg-muted",
+        circle ? "rounded-full" : "rounded-md",
+        width || "w-full",
+        height || "h-4",
+        className,
+      )}
     >
-      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-card/70 to-transparent" />
     </div>
   );
 }
 
-/** 카드 스켈레톤 — 데이터 카드 로딩 상태 */
-export function CardSkeleton({ className = '' }: { className?: string }) {
+export { Skeleton };
+
+/** 카드 스켈레톤 */
+export function CardSkeleton({ className = "" }: { className?: string }) {
   return (
-    <div className={`bg-white rounded-2xl border border-secondary-200 p-5 space-y-4 ${className}`}>
+    <div className={cn("rounded-lg border border-border bg-card p-5 space-y-4", className)}>
       <div className="flex items-center gap-3">
         <Skeleton circle width="w-10" height="h-10" />
         <div className="flex-1 space-y-2">
@@ -53,9 +57,9 @@ export function CardSkeleton({ className = '' }: { className?: string }) {
 }
 
 /** 통계 카드 스켈레톤 */
-export function StatSkeleton({ className = '' }: { className?: string }) {
+export function StatSkeleton({ className = "" }: { className?: string }) {
   return (
-    <div className={`bg-white rounded-2xl border border-secondary-200 p-6 ${className}`}>
+    <div className={cn("rounded-lg border border-border bg-card p-6", className)}>
       <div className="flex items-center gap-3 mb-3">
         <Skeleton circle width="w-10" height="h-10" />
         <Skeleton width="w-24" height="h-4" />
